@@ -217,6 +217,13 @@ describe("transactions", () => {
     ).rejects.toThrow(/check constraint/);
   });
 
+  test("accepts every account type and rejects unknown ones", async () => {
+    for (const type of ["bank", "credit_card", "wallet", "savings", "loan", "deposit"]) {
+      await makeAccount(OWNER, `Type ${type}`, type);
+    }
+    await expect(makeAccount(OWNER, "Type crypto", "crypto")).rejects.toThrow(/check constraint/);
+  });
+
   test("a transfer can't go to the same account", async () => {
     await expect(
       insert({ kind: "transfer", occurred_at: new Date().toISOString(), amount: 100, account_id: bank, to_account_id: bank }),

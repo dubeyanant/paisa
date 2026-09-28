@@ -40,6 +40,20 @@ describe("period totals", () => {
     expect(periodTotals(transactions, accounts, sep)).toMatchObject({ invested: 0, withdrawn: 40000 });
   });
 
+  test("deposits and loan repayments are neither spending nor saving", () => {
+    const withMore = byId([...accounts.values(), account("rent-deposit", "deposit"), account("loan", "loan")]);
+    const transactions = [
+      tx({ kind: "transfer", amount: 3000000, account_id: "bank", to_account_id: "rent-deposit" }),
+      tx({ kind: "transfer", amount: 1500000, account_id: "bank", to_account_id: "loan" }),
+    ];
+    expect(periodTotals(transactions, withMore, sep)).toEqual({
+      income: 0,
+      spending: 0,
+      invested: 0,
+      withdrawn: 0,
+    });
+  });
+
   test("refunds reduce spending (BR-6); adjustments count nowhere (BR-13)", () => {
     const transactions = [
       tx({ kind: "expense", amount: 200000, subcategory_id: "clothes" }),

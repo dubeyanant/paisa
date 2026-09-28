@@ -70,7 +70,34 @@ describe("balance summary", () => {
       available: 5050000,
       cardDues: 1234567,
       savings: 2500000,
+      deposits: 0,
+      loansOwed: 0,
       netPosition: 5050000 + 2500000 - 1234567,
     });
+  });
+
+  test("counts deposits as owned and loans as owed", () => {
+    const accounts = [account("bank", "bank"), account("rent-deposit", "deposit"), account("loan", "loan")];
+    const balances = new Map([
+      ["bank", 1000000],
+      ["rent-deposit", 3000000],
+      ["loan", -20000000],
+    ]);
+    expect(balanceSummary(accounts, balances)).toMatchObject({
+      available: 1000000,
+      deposits: 3000000,
+      loansOwed: 20000000,
+      netPosition: 1000000 + 3000000 - 20000000,
+    });
+  });
+});
+
+describe("loan repayments", () => {
+  test("move money from the bank to what's owed", () => {
+    const accounts = [account("bank", "bank", 5000000), account("loan", "loan", -20000000)];
+    const repayment = tx({ kind: "transfer", amount: 1500000, account_id: "bank", to_account_id: "loan" });
+    const balances = accountBalances(accounts, [repayment]);
+    expect(balances.get("bank")).toBe(3500000);
+    expect(cardOutstanding(balances.get("loan")!)).toBe(18500000);
   });
 });

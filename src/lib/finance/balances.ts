@@ -42,7 +42,7 @@ export function accountBalances(
   return balances;
 }
 
-// What's owed on a credit card: card spends − payments − refunds and cashback
+// What's owed on a credit card or loan: spends − payments − refunds and cashback
 // credited to the card (FR-1 AC3). Negative if the card is in credit.
 export function cardOutstanding(balance: number): number {
   return 0 - balance; // not -balance, which turns 0 into -0
@@ -55,19 +55,37 @@ export type BalanceSummary = {
   cardDues: number;
   // Total in savings and investment accounts.
   savings: number;
-  // available + savings − cardDues (INS-18).
+  // Total in deposits: money held elsewhere that comes back.
+  deposits: number;
+  // Total owed across loans.
+  loansOwed: number;
+  // Everything owned minus everything owed (INS-18).
   netPosition: number;
 };
 
 export function balanceSummary(accounts: Account[], balances: Map<string, number>): BalanceSummary {
-  let available = 0;
-  let cardDues = 0;
-  let savings = 0;
+  const summary = { available: 0, cardDues: 0, savings: 0, deposits: 0, loansOwed: 0 };
   for (const account of accounts) {
     const balance = balances.get(account.id) ?? 0;
-    if (account.type === "bank" || account.type === "wallet") available += balance;
-    else if (account.type === "credit_card") cardDues += cardOutstanding(balance);
-    else savings += balance;
+    switch (account.type) {
+      case "bank":
+      case "wallet":
+        summary.available += balance;
+        break;
+      case "credit_card":
+        summary.cardDues += cardOutstanding(balance);
+        break;
+      case "loan":
+        summary.loansOwed += cardOutstanding(balance);
+        break;
+      case "savings":
+        summary.savings += balance;
+        break;
+      case "deposit":
+        summary.deposits += balance;
+        break;
+    }
   }
-  return { available, cardDues, savings, netPosition: available + savings - cardDues };
+  const { available, cardDues, savings, deposits, loansOwed } = summary;
+  return { ...summary, netPosition: available + savings + deposits - cardDues - loansOwed };
 }
