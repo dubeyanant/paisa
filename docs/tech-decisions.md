@@ -18,7 +18,7 @@ Add a new entry when a decision is made, with the date and the reason.
 
 ### TD-2 Database and auth: Supabase
 - **Date:** 2026-09-28
-- **Decision:** Supabase (Postgres and Auth), accessed through `@supabase/ssr` with the **publishable key**. The project ref is `zdqqqerbbzmiljibfgws`.
+- **Decision:** Supabase (Postgres and Auth), accessed through `@supabase/ssr` with the **publishable key**. The project ref is `oyhkvltibmmuczwalkgm`.
   - `src/lib/supabase/client.ts` creates the browser client.
   - `src/lib/supabase/server.ts` creates the server client. Create a new one per request.
   - `src/proxy.ts` refreshes the auth session on every request.
