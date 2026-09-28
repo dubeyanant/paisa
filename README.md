@@ -31,6 +31,7 @@ Supabase URL and publishable key. Secrets go in `.env.local`, which is git-ignor
 | `bun start` | Serve the production build |
 | `bun run lint` | ESLint |
 | `bun run typecheck` | TypeScript check |
+| `bun run test` | Tests (`bun test`) |
 | `bun supabase <cmd>` | Supabase CLI (e.g. `migration new`) |
 
 ## Workflow
@@ -40,7 +41,7 @@ Supabase URL and publishable key. Secrets go in `.env.local`, which is git-ignor
 - **Vercel** deploys production from `main` and previews from branches and PRs.
 - **Supabase** applies new files in `supabase/migrations/` to the database on
   merge into `main`.
-- **CI** runs lint, typecheck and build on every PR.
+- **CI** runs lint, typecheck, tests and build on every PR.
 - **Claude Code cloud sessions** set themselves up via `scripts/cloud-setup.sh`
   and need no configuration. They have no Supabase access by design.
 - **This repo is public.** Never commit real financial or personal data.
@@ -50,7 +51,7 @@ Supabase URL and publishable key. Secrets go in `.env.local`, which is git-ignor
 ```
 .claude/settings.json  cloud session hook
 .githooks/             pre-push hook blocking direct pushes to main
-.github/workflows/     CI: lint, typecheck, build
+.github/workflows/     CI: lint, typecheck, test, build
 docs/                  BRD and tech decisions
 scripts/               cloud-setup.sh
 src/
