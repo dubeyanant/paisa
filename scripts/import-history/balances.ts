@@ -2,10 +2,15 @@
 //
 //   bun scripts/import-history/balances.ts          first run: writes .private/balances.ts to fill in
 //                                                   later runs: shows computed vs actual
-//   bun scripts/import-history/balances.ts --write  records one adjustment per account that differs
+//   bun scripts/import-history/balances.ts --write  updates the starting balance of each account that differs
 //
-// Adjustments belong to the latest import batch, so undoing the import removes
-// them too, and no insight ever counts them (BR-13).
+// The export has every transaction but not the balance each account had when
+// the owner started tracking, so the difference goes into the account's
+// opening balance on its first day. Past balances then come out right too,
+// and opening balances never count as income or spending (TD-12).
+//
+// The numbers come from the old app, which counts future-dated entries in its
+// balances, so the comparison includes planned entries too.
 
 import { createClient } from "@supabase/supabase-js";
 import { existsSync, writeFileSync } from "node:fs";
@@ -47,7 +52,8 @@ async function main() {
     transactions.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
-  const computed = accountBalances(accounts as Account[], transactions, new Date());
+  const asInOldApp = transactions.map((t) => ({ ...t, is_planned: false }));
+  const computed = accountBalances(accounts as Account[], asInOldApp);
   const shown = (a: { id: string; type: string }) => (OWED.has(a.type) ? 0 - computed.get(a.id)! : computed.get(a.id)!);
 
   if (!existsSync(BALANCES_FILE)) {
@@ -72,15 +78,6 @@ async function main() {
   }
 
   const actual: Record<string, Entry> = (await import(BALANCES_FILE)).default;
-  const { data: batch } = await supabase
-    .from("import_batches")
-    .select("id")
-    .order("imported_at", { ascending: false })
-    .limit(1)
-    .single();
-  if (!batch) throw new Error("No import batch found. Run the import first.");
-
-  const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
   let changes = 0;
   for (const account of accounts) {
     const entry = actual[account.name];
@@ -97,18 +94,16 @@ async function main() {
 
     if (difference !== 0) {
       changes++;
-      console.log(`${account.name}: adjust by ${formatINR(difference, { paise: "always" })}`);
+      const opening = account.opening_balance + difference;
+      console.log(
+        `${account.name}: starting balance ${formatINR(account.opening_balance, { paise: "always" })} -> ${formatINR(opening, { paise: "always" })}`,
+      );
       if (write) {
-        const { error: adjustError } = await supabase.from("transactions").insert({
-          kind: "adjustment",
-          occurred_at: new Date().toISOString(),
-          amount: difference,
-          account_id: account.id,
-          note: "Balance adjustment after import",
-          import_batch_id: batch.id,
-          import_key: `balance:${account.id}:${today}`,
-        });
-        if (adjustError) throw adjustError;
+        const { error: updateError } = await supabase
+          .from("accounts")
+          .update({ opening_balance: opening })
+          .eq("id", account.id);
+        if (updateError) throw updateError;
       }
     }
     if (archive && !account.archived_at) {

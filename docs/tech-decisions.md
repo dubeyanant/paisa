@@ -102,6 +102,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Every run is one row in `import_batches`. Deleting that row deletes its transactions, which undoes the run.
   - Each imported row gets an `import_key`, unique per user. A re-run on a newer export skips rows already imported, so the final import can happen right before the owner stops using the old app.
   - Each row keeps the old app's names in `import_source`, so it can be traced back.
+  - The export has no starting balances. The balance step (`balances.ts`) puts the difference from each account's real balance into its **opening balance**, not an adjustment dated on the import day (BRD FR-14.2 step 6), so past balances come out right too. The old app counts future-dated entries in its balances, so the comparison includes planned entries.
 - **Why:** The import happens once. Building upload and mapping screens for it would cost more than any other Phase 1 feature, for no lasting use.
 
 ### TD-13 Data model
