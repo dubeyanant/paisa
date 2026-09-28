@@ -108,7 +108,8 @@ Add a new entry when a decision is made, with the date and the reason.
 - **Date:** 2026-09-28
 - **Decision:** The first migration (`supabase/migrations/*_core_schema.sql`) sets these rules:
   - **Transaction kinds:** `expense`, `income`, `refund` (money back that reduces a subcategory's spending, BR-6), `transfer`, and `adjustment` (a signed balance correction that no insight counts, BR-13).
-  - **Balances are signed:** a credit card's balance is negative while money is owed, and its outstanding amount is the balance flipped.
+  - **Account types:** the BRD's four (bank, credit card, wallet, savings) plus **loan** (money owed) and **deposit** (money held elsewhere that comes back, such as a rent deposit). Money moved into a deposit or a loan is neither spending nor saving. Both count toward net position.
+  - **Balances are signed:** a credit card's or loan's balance is negative while money is owed, and its outstanding amount is the balance flipped. Paying a card bill or a loan is a transfer; the entry screen labels it "Pay bill" or "Repay loan".
   - **Categories:** always two levels. Income categories have subcategories too (for example Returns → Cashback), so every expense, income and refund has one. A subcategory can be deleted only while no transaction uses it; otherwise it is merged or hidden. **Lost Track** sits under Personal and is marked as system: it can be renamed but not deleted.
   - **Buckets belong to a budget rule.** Each rule has 2–6 buckets and its own subcategory → bucket assignments. One rule is active, and it applies to every month, so changing it recalculates history (FR-4 AC3, UAT-7). One bucket per rule holds savings transfers.
   - **Recurring commitments are templates.** Their pending entries are worked out from the schedule, not stored. Confirming one creates a transaction linked through `recurring_id`.

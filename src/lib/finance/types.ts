@@ -1,7 +1,7 @@
 // The fields the calculations need, named as in the database
 // (supabase/migrations/*_core_schema.sql). Amounts are paise.
 
-export type AccountType = "bank" | "credit_card" | "wallet" | "savings";
+export type AccountType = "bank" | "credit_card" | "wallet" | "savings" | "loan" | "deposit";
 
 export type Account = {
   id: string;
