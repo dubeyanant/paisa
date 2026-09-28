@@ -2,6 +2,7 @@
 
 - Requirements: `docs/personal-finance-dashboard-BRD.md`
 - Tech decisions: @docs/tech-decisions.md (log new decisions there)
+- Roadmap and current step: @docs/roadmap.md (update it at the end of each step)
 
 ## Rules
 

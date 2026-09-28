@@ -52,7 +52,7 @@ Supabase URL and publishable key. Secrets go in `.env.local`, which is git-ignor
 .claude/settings.json  cloud session hook
 .githooks/             pre-push hook blocking direct pushes to main
 .github/workflows/     CI: lint, typecheck, test, build
-docs/                  BRD and tech decisions
+docs/                  BRD, tech decisions and roadmap
 scripts/               cloud-setup.sh, import-history/ (one-time history import, TD-12)
 src/
   app/                 routes (App Router)
