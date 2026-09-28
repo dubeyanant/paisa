@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks direct pushes to main (TD-5): main changes only through merged PRs.
+# Enabled by `bun install` (package.json "prepare" sets core.hooksPath).
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "Blocked: direct push to main. Push a branch and open a PR (see TD-5)." >&2
+    exit 1
+  fi
+done
+exit 0
