@@ -47,3 +47,6 @@ next-env.d.ts
 *.xlsx
 *.xls
 *.csv
+
+# owner-only files for the history import (mapping, review report, balances)
+/.private/

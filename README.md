@@ -53,7 +53,7 @@ Supabase URL and publishable key. Secrets go in `.env.local`, which is git-ignor
 .githooks/             pre-push hook blocking direct pushes to main
 .github/workflows/     CI: lint, typecheck, test, build
 docs/                  BRD and tech decisions
-scripts/               cloud-setup.sh
+scripts/               cloud-setup.sh, import-history/ (one-time history import, TD-12)
 src/
   app/                 routes (App Router)
   lib/finance/         calculations: money, IST dates, balances, totals, budgets
