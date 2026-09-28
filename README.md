@@ -56,6 +56,7 @@ docs/                  BRD and tech decisions
 scripts/               cloud-setup.sh
 src/
   app/                 routes (App Router)
+  lib/finance/         calculations: money, IST dates, balances, totals, budgets
   lib/supabase/        Supabase clients (browser, server) and session refresh
   proxy.ts             runs before every request (Next 16's name for middleware)
 supabase/              CLI config, migrations and migration tests
