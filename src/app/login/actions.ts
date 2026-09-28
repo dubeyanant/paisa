@@ -19,16 +19,25 @@ export async function signIn(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    const message =
-      error.code === "invalid_credentials"
-        ? "Wrong email or password."
-        : error.code === "over_request_rate_limit"
-          ? "Too many attempts. Wait a minute and try again."
-          : "Couldn't sign in. Please try again.";
-    return { error: message, email };
+    // Shows up in the server logs (Vercel → Logs) to tell failures apart.
+    console.error("Sign-in failed:", error.code ?? error.status, error.message);
+    return { error: signInErrorMessage(error.code), email };
   }
 
   redirect(safeNextPath(String(formData.get("next") ?? "")));
+}
+
+function signInErrorMessage(code: string | undefined) {
+  switch (code) {
+    case "invalid_credentials":
+      return "Wrong email or password.";
+    case "email_not_confirmed":
+      return "This account's email isn't confirmed yet. Confirm the user in the Supabase dashboard.";
+    case "over_request_rate_limit":
+      return "Too many attempts. Wait a minute and try again.";
+    default:
+      return "Couldn't sign in. Please try again.";
+  }
 }
 
 export async function signOut() {
