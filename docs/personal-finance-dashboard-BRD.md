@@ -4,7 +4,7 @@
 | Item | Detail |
 |---|---|
 | Document type | Business Requirements Document (BRD) |
-| Version | 1.1 |
+| Version | 1.2 |
 | Date | 28 September 2026 |
 | Owner / sole user | The product owner (single personal user) |
 | Audience | The build agent / developer implementing the product |
@@ -15,6 +15,7 @@
 |---|---|
 | 1.0 | First version. |
 | 1.1 | (a) "Family support" broadened to a general **Family** subcategory covering any money spent on or sent to family. "Gifts & treats for others" renamed **Friends & others**. (b) **History import from the old app added back** as FR-14: a guided, one-time migration of about 3 years of data, including categories and accounts that no longer exist in the old app. Related sections updated: 2, 4, 6, 7 (FR-7), 8, 10, 12, 13, 14.
+| 1.2 | **FR-14 is a one-time scripted import, not an in-app feature** (owner decision). The builder imports the owner's export with a script and the owner reviews the mappings once. The upload and mapping screens, the first-launch "Start fresh / Import my history" choice and Settings → Import are dropped. FR-14.1 and FR-14.3 still apply to the script. See tech decision TD-12.
 
 > **Note to the build agent:** This document describes *what* the product must do and *how we will know it works*. It deliberately contains no technology choices. You decide the stack, architecture, storage and hosting. Where this document gives a formula, the formula is a business rule, not an implementation hint. Where something is unclear, check Section 14 (Open Questions) first, then choose the simplest reasonable option and record the decision.
 
@@ -340,7 +341,7 @@ AI is **off by default** and entirely optional. The product must never depend on
 
 **Purpose:** let the owner bring about 3 years of history from the old money-manager app on day one, so every insight, trend and budget history works immediately. It is designed as a one-time migration at the start, but must be safe to run more than once, for example one file per year or a re-run by mistake.
 
-**Where it appears:** on first launch the owner chooses **Start fresh** or **Import my history**. Import is also always available under Settings → Import.
+**Where it appears:** nowhere in the product (v1.2). The builder runs the import as a script, and the owner reviews the account and category mappings in a file instead of the screens in FR-14.2. The steps below describe what the script and the review cover.
 
 #### FR-14.1 The file the product must accept
 This is the old app's spreadsheet export, in the same format as the sample the owner provided.
@@ -581,7 +582,7 @@ Use these scenarios, based on the owner's real patterns, to confirm the product 
 | UAT-16 | Add an expense on the phone, then open the laptop. | The expense appears on the laptop. |
 | UAT-17 | Log a future-dated rent entry for next month. | Shows in Upcoming and reserved money, not in this month's spending. |
 | UAT-18 | Export all data. | Spreadsheet contains every transaction with all fields listed in FR-11. |
-| UAT-19 | First launch → **Import my history** → upload the full 3-year export. | Every distinct account and category pair is listed, including retired ones, with counts, totals, date ranges and example notes. |
+| UAT-19 | Run the import script on the full export. | Every distinct account and category pair is listed, including retired ones, with counts, totals, date ranges and example notes. |
 | UAT-20 | Map "Other → Spent for others" with a note rule ("mom", "papa", "parents", "family" → Family; else → Friends & others). Turn trip notes into tags. | Rows split correctly. Trips appear as tags with working trip reports. |
 | UAT-21 | Review the preview and finish the import. | File totals and imported totals match per year and type, or differences are fully explained by skipped rows. |
 | UAT-22 | Enter today's real balance for each account. | Balances match. Adjustments do not appear in any insight. |

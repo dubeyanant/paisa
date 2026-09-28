@@ -58,5 +58,5 @@ src/
   app/                 routes (App Router)
   lib/supabase/        Supabase clients (browser, server) and session refresh
   proxy.ts             runs before every request (Next 16's name for middleware)
-supabase/              CLI config and migrations
+supabase/              CLI config, migrations and migration tests
 ```

@@ -94,6 +94,29 @@ Add a new entry when a decision is made, with the date and the reason.
 - **Decision:** All tests use Bun's built-in runner (`bun run test`), with `*.test.ts` files next to the code they test. CI runs them on every PR.
 - **Why:** It's already installed, fast, and runs TypeScript directly. The priority is the calculation logic, which the BRD's acceptance criteria give exact figures for (NFR-5).
 
+### TD-12 History import: a script, not a feature
+- **Date:** 2026-09-28
+- **Decision:** The owner's old-app history is imported once by a script run on the owner's computer, not through screens in the app (BRD v1.2, FR-14).
+  - The script signs in as the owner, so RLS applies as for any other write. It needs no secret keys.
+  - The export file and the account and category mappings stay outside Git (TD-6). The owner reviews the mappings once before the import.
+  - Every run is one row in `import_batches`. Deleting that row deletes its transactions, which undoes the run.
+  - Each imported row gets an `import_key`, unique per user. A re-run on a newer export skips rows already imported, so the final import can happen right before the owner stops using the old app.
+  - Each row keeps the old app's names in `import_source`, so it can be traced back.
+- **Why:** The import happens once. Building upload and mapping screens for it would cost more than any other Phase 1 feature, for no lasting use.
+
+### TD-13 Data model
+- **Date:** 2026-09-28
+- **Decision:** The first migration (`supabase/migrations/*_core_schema.sql`) sets these rules:
+  - **Transaction kinds:** `expense`, `income`, `refund` (money back that reduces a subcategory's spending, BR-6), `transfer`, and `adjustment` (a signed balance correction that no insight counts, BR-13).
+  - **Balances are signed:** a credit card's balance is negative while money is owed, and its outstanding amount is the balance flipped.
+  - **Categories:** always two levels. Income categories have subcategories too (for example Returns → Cashback), so every expense, income and refund has one. A subcategory can be deleted only while no transaction uses it; otherwise it is merged or hidden. **Lost Track** sits under Personal and is marked as system: it can be renamed but not deleted.
+  - **Buckets belong to a budget rule.** Each rule has 2–6 buckets and its own subcategory → bucket assignments. One rule is active, and it applies to every month, so changing it recalculates history (FR-4 AC3, UAT-7). One bucket per rule holds savings transfers.
+  - **Recurring commitments are templates.** Their pending entries are worked out from the schedule, not stored. Confirming one creates a transaction linked through `recurring_id`.
+  - **Defaults:** a trigger on `auth.users` creates each user's settings, the 50/30/20 rule and the BRD §10 categories.
+  - **Integrity:** references between tables include `user_id`, so rows can't point at another user's rows. Accounts, categories and subcategories that have transactions can't be deleted.
+  - **Tests:** `supabase/tests/migrations.test.ts` runs every migration on an in-memory Postgres (PGlite) with a stand-in for Supabase's auth, then checks defaults, RLS and constraints. It runs in CI, because preview databases are off and a migration would otherwise run for the first time in production.
+- **Why:** These rules keep every figure exact and consistent (NFR-5), keep the data private (NFR-6), and make the flexibility in FR-4 and FR-7 possible without losing history.
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.
@@ -102,5 +125,5 @@ Decide these when the related work starts. Until then they are only suggestions.
 |---|---|---|
 | PWA / installability and offline entry | NFR-2, NFR-4 | — |
 | Charts library | FR-8, Section 9 | — |
-| Parsing .xlsx for import | FR-14 | — |
+| Parsing .xlsx for import | FR-14 | SheetJS (`xlsx`) in the import script only |
 | Storing AI provider keys | FR-10.1, NFR-6 | Encrypted on the server, never sent back to the client |
