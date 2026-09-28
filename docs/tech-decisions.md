@@ -50,7 +50,7 @@ Add a new entry when a decision is made, with the date and the reason.
 - **Enforcement:**
   - A GitHub ruleset on `main` requires a pull request and the `check` status to pass. It blocks force pushes and branch deletion, and has no bypass.
   - `.githooks/pre-push` rejects pushes to `main` from any clone. `bun install` enables it through the `prepare` script.
-  - `.github/workflows/ci.yml` runs lint, typecheck and build on every PR and on `main`.
+  - `.github/workflows/ci.yml` runs lint, typecheck, tests and build on every PR and on `main`.
 - **Why:** Every merge to `main` deploys to production and can change the live database (TD-3, TD-4).
 
 ### TD-6 Public repo: no personal data
@@ -70,18 +70,37 @@ Add a new entry when a decision is made, with the date and the reason.
   - Cloud sessions write code and migrations, push a branch and open a PR. Running app behaviour is checked on the PR's Vercel preview.
 - **Why:** Schema changes reach the database only through Git (TD-3), and cloud sessions never touch the production database.
 
+### TD-8 Money: whole paise in `bigint`
+- **Date:** 2026-09-28
+- **Decision:** Every amount is stored as a whole number of paise in a `bigint` column (₹120.50 is `12050`). Code works in integer paise too, and converts to rupees only for display, as ₹ with Indian grouping (₹1,23,456.78). Never floats or `numeric` rupees.
+- **Why:** Figures must be exact to the paisa and match on every screen (S4, BR-11, NFR-5). Integer sums have no rounding errors.
+
+### TD-9 Dates and times: stored in UTC, shown in IST
+- **Date:** 2026-09-28
+- **Decision:** Moments are stored as `timestamptz` (UTC) and shown in IST (`Asia/Kolkata`). Anything that depends on the calendar, such as "today", budget months (FR-12) and weekdays, is worked out in IST, not in the server's time zone.
+- **Why:** The owner lives in IST (A1), while Vercel and Postgres run in UTC. An expense at 00:30 IST must count on the right day and in the right month.
+
+### TD-10 Sign-in: email and password, sign-ups closed
+- **Date:** 2026-09-28
+- **Decision:**
+  - Supabase Auth with email and password. There is no magic link, because on a phone it opens in the browser, not the app installed on the home screen.
+  - Sign-ups are **off** in Supabase Auth. The owner's account is created in the dashboard (Authentication → Users → Add user). The app has a sign-in page and no sign-up page.
+  - `src/proxy.ts` sends signed-out visitors to `/login`. Every page, Server Function and Route Handler that touches data also calls `requireUser()` from `src/lib/auth.ts`, and RLS protects the rows themselves.
+  - Signing out ends only the current device's session, so the owner stays signed in elsewhere (FR-13).
+- **Why:** There is one user (FR-13), and the app is on a public URL, so nobody else must be able to create an account.
+
+### TD-11 Tests: `bun test`
+- **Date:** 2026-09-28
+- **Decision:** All tests use Bun's built-in runner (`bun run test`), with `*.test.ts` files next to the code they test. CI runs them on every PR.
+- **Why:** It's already installed, fast, and runs TypeScript directly. The priority is the calculation logic, which the BRD's acceptance criteria give exact figures for (NFR-5).
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.
 
 | Topic | Relevant BRD | Suggested starting point |
 |---|---|---|
-| How money is stored | S4, BR-11, NFR-5 (exact to the paisa) | Store amounts as integer paise (`bigint`), never floats |
-| Sign-in method | FR-13 | Supabase email magic link or password, single user |
-| Allowing new sign-ups | FR-13 (single user) | Turn off sign-ups in Supabase Auth once the owner's account exists |
-| Date and time handling | A1 (IST), FR-14 (spreadsheet serial dates) | Store in UTC, show in IST |
 | PWA / installability and offline entry | NFR-2, NFR-4 | — |
 | Charts library | FR-8, Section 9 | — |
-| Test framework | Section 13 (UAT), NFR-5 | `bun test` for calculation logic |
 | Parsing .xlsx for import | FR-14 | — |
 | Storing AI provider keys | FR-10.1, NFR-6 | Encrypted on the server, never sent back to the client |
