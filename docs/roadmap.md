@@ -41,7 +41,7 @@ the screens need, and merges first (TD-3).
   a due date with one tap, with the amount editable first, or skips it with an undo, and
   confirms planned entries whose date has come (BR-7). Coming up shows the next 30 days
   with a total. Payments detected in the history are offered as new commitments.
-- **8c: budget rules (FR-7).** The Budget screen shows each bucket's target, actual,
+- **8c: budget rules (FR-7).** `save_budget_rule()` ships first, in its own PR. The Budget screen shows each bucket's target, actual,
   remaining, share of the base and pace, and how each of the last 6 months went. Rules:
   pick a preset or make a custom one (2 to 6 buckets adding up to 100%), and choose the
   base. An entry's edit screen can move that one entry to another bucket.
