@@ -34,6 +34,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Nobody changes tables by hand in the dashboard or runs `db push`.
   - Merging to `main` changes the live database, so merge a migration only when it's ready.
   - Vercel and Supabase deploy from the same merge in no guaranteed order. A migration must not break the app version currently deployed: add first, remove later.
+  - Preview deployments use the production database, where a PR's own migration hasn't run yet. So a preview can't show code that needs that migration, and after the merge the new app may briefly run before the migration does. Ship a migration in its own PR, merged before the code that uses it, or make the code cope without it.
 - **Why:** Schema history lives in Git, and every change is reviewed in a PR.
 
 ### TD-4 Hosting and configuration: Vercel
