@@ -2,6 +2,7 @@
 // saved, describing its schedule, and sorting what's due into "due now" and
 // "upcoming". The due dates themselves come from src/lib/finance/recurring.ts.
 
+import { ordinal } from "@/lib/accounts";
 import { isDate, parseName } from "@/lib/categories";
 import { addDays, istDate } from "@/lib/finance/dates";
 import { parseRupees } from "@/lib/finance/money";
@@ -104,11 +105,6 @@ export function isScheduledOn(c: Pick<Commitment, "unit" | "every" | "first_due_
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function ordinal(n: number) {
-  const suffix = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
-  return `${n}${suffix}`;
-}
 
 // "Monthly on the 5th", "Every 3 months on the 15th", "Weekly on Tuesday",
 // "Yearly on 12 Mar". A month without the day (the 31st) uses its last day.

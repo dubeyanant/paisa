@@ -34,6 +34,8 @@ export type EntryFormProps = {
   defaultAccountId: string | null;
   // Edit an entry, or start a new one from a copy of it.
   initial?: { mode: "edit" | "duplicate"; entry: Entry };
+  // The active budget rule, so an edited expense can go in another bucket (FR-7).
+  budget?: { buckets: { id: string; name: string }[]; assignments: [string, string][] };
 };
 
 type Line = {
@@ -86,6 +88,7 @@ export function EntryForm(props: EntryFormProps) {
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
   const [tagIds, setTagIds] = useState<string[]>(source?.tag_ids ?? []);
+  const [bucketOverride, setBucketOverride] = useState(editing?.bucket_override_id ?? "");
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState<Saved>();
   const [pending, startTransition] = useTransition();
@@ -167,6 +170,7 @@ export function EntryForm(props: EntryFormProps) {
       description,
       lines: lines.map(({ id, amount, subcategory_id, note }) => ({ id, amount, subcategory_id, note })),
       tag_ids: tagIds,
+      bucket_override_id: editing ? bucketOverride || null : null,
     };
   }
 
@@ -437,6 +441,15 @@ export function EntryForm(props: EntryFormProps) {
         // Suggestions follow the entry's date (FR-5).
         date={when === null ? istDate(new Date()) : when.slice(0, 10)}
       />
+
+      {editing && props.budget && (kind === "expense" || kind === "refund") && (
+        <BucketChoice
+          budget={props.budget}
+          subcategoryId={lines[0].subcategory_id}
+          value={bucketOverride}
+          onChange={setBucketOverride}
+        />
+      )}
 
       {showDescription ? (
         <label className="flex flex-col gap-1.5">
@@ -764,6 +777,36 @@ function TagPicker({
         </p>
       )}
     </section>
+  );
+}
+
+// Which budget bucket the entry counts in: its category's, or another one for
+// this entry only (FR-7), such as a work cab counted as a Need.
+function BucketChoice({
+  budget,
+  subcategoryId,
+  value,
+  onChange,
+}: {
+  budget: NonNullable<EntryFormProps["budget"]>;
+  subcategoryId: string | null;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const byCategory = new Map(budget.assignments).get(subcategoryId ?? "");
+  const usual = budget.buckets.find((b) => b.id === byCategory)?.name;
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">Budget bucket</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={`${inputClass} px-2`}>
+        <option value="">{usual ? `Its category's bucket (${usual})` : "Its category's bucket"}</option>
+        {budget.buckets.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}, for this entry only
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

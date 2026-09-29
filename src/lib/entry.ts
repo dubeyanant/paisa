@@ -175,6 +175,9 @@ export type EntryInput = {
   lines: EntryLineInput[];
   // Tags for every line (FR-5).
   tag_ids?: string[];
+  // Puts an expense or refund in another budget bucket than its category's
+  // (FR-7). Only the edit screen offers it.
+  bucket_override_id?: string | null;
 };
 
 export type TransactionInsert = {
@@ -188,6 +191,7 @@ export type TransactionInsert = {
   description: string | null;
   occurred_at: string;
   is_planned: boolean;
+  bucket_override_id: string | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -226,6 +230,12 @@ export function parseEntry(
   if (tagIds.length > MAX_TAGS) return fail(`Add at most ${MAX_TAGS} tags.`);
   if (!tagIds.every((id) => UUID.test(String(id)))) return fail("Something went wrong. Reload and try again.");
 
+  let bucket_override_id: string | null = null;
+  if ((input.kind === "expense" || input.kind === "refund") && input.bucket_override_id) {
+    if (!UUID.test(input.bucket_override_id)) return fail("Something went wrong. Reload and try again.");
+    bucket_override_id = input.bucket_override_id;
+  }
+
   const rows: TransactionInsert[] = [];
   for (const [index, line] of lines.entries()) {
     const which = lines.length > 1 ? ` on line ${index + 1}` : "";
@@ -250,6 +260,7 @@ export function parseEntry(
       description: description || null,
       occurred_at: when.toISOString(),
       is_planned: when.getTime() > now.getTime(),
+      bucket_override_id,
     });
   }
   return { ok: true, rows, tagIds };

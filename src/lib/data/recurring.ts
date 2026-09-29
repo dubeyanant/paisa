@@ -5,6 +5,7 @@ import { isUuid } from "@/lib/data/accounts";
 import type { Entry } from "@/lib/data/entries";
 import { addDays, istDate, istStartOf } from "@/lib/finance/dates";
 import type { Commitment, Transaction } from "@/lib/finance/types";
+import { allRows, TRANSACTION_COLUMNS } from "@/lib/data/paging";
 import { createClient } from "@/lib/supabase/server";
 
 // Recurring commitments and the transactions their screens need (FR-6).
@@ -13,31 +14,6 @@ export type CommitmentRow = Commitment & { name: string; created_at: string };
 
 const COMMITMENT_COLUMNS =
   "id, name, kind, amount, is_variable, account_id, to_account_id, subcategory_id, unit, every, first_due_on, ends_on, paused_at, created_at, recurring_skips(due_on)";
-
-const TRANSACTION_COLUMNS =
-  "id, kind, occurred_at, amount, account_id, to_account_id, subcategory_id, is_planned, bucket_override_id, note, recurring_id";
-
-// The API returns at most 1,000 rows a request, so longer lists come in pages.
-const PAGE = 1000;
-const MAX_PAGES = 10;
-
-// `page` fetches rows `from` to `to`, in a fixed order.
-async function allRows(
-  page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: Error | null }>,
-): Promise<Transaction[]> {
-  const rows: Transaction[] = [];
-  for (let n = 0; n < MAX_PAGES; n++) {
-    const { data, error } = await page(n * PAGE, (n + 1) * PAGE - 1);
-    if (error) throw error;
-    rows.push(...(data as Record<string, unknown>[]).map(toTransaction));
-    if (data!.length < PAGE) break;
-  }
-  return rows;
-}
-
-function toTransaction(row: Record<string, unknown>): Transaction {
-  return { ...(row as Transaction), amount: Number(row.amount) };
-}
 
 function toCommitment(row: Record<string, unknown>): CommitmentRow {
   const { recurring_skips, ...rest } = row as CommitmentRow & { recurring_skips: { due_on: string }[] };

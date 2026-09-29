@@ -142,6 +142,7 @@ describe("parseEntry", () => {
           description: null,
           occurred_at: "2026-09-29T06:30:00.000Z",
           is_planned: false,
+          bucket_override_id: null,
         },
       ],
       tagIds: [],
@@ -179,6 +180,17 @@ describe("parseEntry", () => {
   test("a future date makes the entry planned (BR-7)", () => {
     const result = parseEntry({ ...base, occurred_at: "2026-10-01T09:00" }, now);
     expect(result).toMatchObject({ ok: true, rows: [{ is_planned: true }] });
+  });
+
+  test("an expense can go in another budget bucket; a transfer can't (FR-7 AC3)", () => {
+    const WANTS = "00000000-0000-4000-8000-0000000000b2";
+    expect(parseEntry({ ...base, bucket_override_id: WANTS }, now)).toMatchObject({
+      ok: true,
+      rows: [{ bucket_override_id: WANTS }],
+    });
+    const transfer = parseEntry({ ...base, kind: "transfer", to_account_id: CARD, bucket_override_id: WANTS }, now);
+    expect(transfer).toMatchObject({ ok: true, rows: [{ bucket_override_id: null }] });
+    expect(parseEntry({ ...base, bucket_override_id: "nope" }, now).ok).toBe(false);
   });
 
   test("a transfer has no category, and a card payment is one (FR-3 AC1)", () => {
