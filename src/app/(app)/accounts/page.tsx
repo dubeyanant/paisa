@@ -20,13 +20,13 @@ export default async function AccountsPage() {
   // A figure of ₹0 says nothing, so it isn't shown (TD-18).
   const tiles = [
     { label: "Bank and cash", hint: "What the accounts hold", value: summary.available },
-    { label: "Planned", hint: `Still to pay by ${dayInSentence(addDays(month.end, -1), today)}`, value: summary.planned },
+    { label: "Planned", hint: `Still to pay by ${dayInSentence(addDays(month.end, -1), today)}`, value: summary.planned, tone: "text-planned" },
     { label: "Set aside", hint: "Sinking funds", value: summary.setAside },
-    { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, owed: true },
+    { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, tone: "text-negative" },
     { label: "Card credit", hint: "In your favour", value: summary.cardCredit },
-    { label: "Savings", hint: "Savings and investments", value: summary.savings },
+    { label: "Savings", hint: "Savings and investments", value: summary.savings, tone: "text-saving" },
     { label: "Deposits", hint: "Comes back later", value: summary.deposits },
-    { label: "Loans", hint: "Still owed", value: summary.loansOwed, owed: true },
+    { label: "Loans", hint: "Still owed", value: summary.loansOwed, tone: "text-negative" },
     { label: "Net position", hint: "All you have, minus all you owe", value: summary.netPosition },
   ].filter((t) => t.value !== 0);
 
@@ -45,16 +45,16 @@ export default async function AccountsPage() {
       <Card className="p-4 md:p-6">
         <p className="text-sm text-muted">Available to spend</p>
         <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums md:text-4xl">
-          <Amount value={summary.spendable} />
+          <Amount value={summary.spendable} className="text-spendable" />
         </p>
         <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
         <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-4">
           {tiles.map((tile) => (
             <div key={tile.label} className="min-w-0">
               <dt className="text-sm text-muted">{tile.label}</dt>
-              {/* Money owed is shown in red, like a negative balance. */}
-              <dd className={`mt-0.5 truncate text-lg font-medium tabular-nums ${"owed" in tile ? "text-negative" : ""}`}>
-                <Amount value={tile.value} />
+              {/* Planned money in orange, savings in green, money owed in red. */}
+              <dd className="mt-0.5 truncate text-lg font-medium tabular-nums">
+                <Amount value={tile.value} className={"tone" in tile ? tile.tone : undefined} />
               </dd>
               <dd className="text-xs text-muted">{tile.hint}</dd>
             </div>

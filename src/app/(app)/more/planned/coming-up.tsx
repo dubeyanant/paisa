@@ -43,7 +43,7 @@ export function ComingUp({
                     {[capitalise(dayInSentence(u.date, today)), often, from].filter(Boolean).join(" · ")}
                   </p>
                 </div>
-                <p className="shrink-0 text-right font-medium tabular-nums">
+                <p className="shrink-0 text-right font-medium text-planned tabular-nums">
                   {c?.is_variable && <span className="font-normal text-muted">about </span>}
                   {formatINR(u.amount)}
                 </p>

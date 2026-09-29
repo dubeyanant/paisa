@@ -80,12 +80,13 @@ describe("INS-19 top alerts", () => {
       priceChange: { from: 7700, to: 8000, on: "2026-09-01" },
     } as RecurringPayment;
     const slightlyOver = { status: "over", actual: 1850000, target: 1800000 } as BucketAdherence;
+    const noIncomeYet = { status: "over", actual: 500000, target: 0 } as BucketAdherence;
     const alerts = topAlerts({
       // ₹800 ahead of pace, and ₹900 over a usual month.
       pace: { ready: true, total: pace(0, 0), byCategory: new Map([["health", pace(420000, 340000)]]) },
       trends: { ready: true, byCategory: new Map([["bills", trend(190000, 100000)]]) },
       recurring: [milk, smallRise],
-      budget: [slightlyOver],
+      budget: [slightlyOver, noIncomeYet],
     });
     expect(alerts).toEqual([]);
   });

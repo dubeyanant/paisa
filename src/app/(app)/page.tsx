@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BudgetBar } from "@/components/budget-bar";
 import { ChevronRightIcon } from "@/components/icons";
 import { Amount, Card, PageHeader, buttonClass } from "@/components/ui";
 import { statusLabel } from "@/lib/budget";
@@ -62,14 +63,14 @@ export default async function Home() {
                 <ChevronRightIcon className="-mr-1 size-5 text-muted" />
               </div>
               <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-                <Amount value={summary.spendable} />
+                <Amount value={summary.spendable} className="text-spendable" />
               </p>
               <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
               <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
                 <div className="min-w-0">
                   <dt className="text-sm text-muted">Planned this month</dt>
                   <dd className="truncate font-medium tabular-nums">
-                    <Amount value={summary.planned} />
+                    <Amount value={summary.planned} className="text-planned" />
                   </dd>
                 </div>
                 <div className="min-w-0">
@@ -144,7 +145,7 @@ export default async function Home() {
               <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-lg font-semibold">Planned</h2>
-                  <p className="text-sm text-muted tabular-nums">{formatINR(upcomingTotal)} in the next 30 days</p>
+                  <p className="text-sm text-muted tabular-nums"><span className="text-planned">{formatINR(upcomingTotal)}</span> in the next 30 days</p>
                 </div>
                 <Link href="/more/planned" className="flex h-11 items-center text-sm font-medium text-accent">
                   See all
@@ -217,23 +218,23 @@ function Alerts({ alerts, className }: { alerts: AlertText[]; className: string 
   );
 }
 
-const BAR = { on_track: "bg-accent", at_risk: "bg-warning", over: "bg-negative" };
 const LABEL = { on_track: "text-muted", at_risk: "text-warning", over: "text-negative" };
 
-// A bucket at a glance: how much of its target is used.
+// A bucket at a glance: how much of its target is used, and planned payments
+// still to come in a lighter shade.
 function BucketRow({ b }: { b: BucketAdherence }) {
-  const filled = b.target > 0 ? Math.min(b.actual / b.target, 1) : b.actual > 0 ? 1 : 0;
   return (
     <li>
       <div className="flex items-baseline justify-between gap-3 text-sm">
         <p className="min-w-0 truncate font-medium">{b.bucket.name}</p>
         <p className={`shrink-0 font-medium ${LABEL[b.status]}`}>{statusLabel(b)}</p>
       </div>
-      <div className="mt-1.5 h-1.5 rounded-full bg-foreground/[0.08]" aria-hidden>
-        <div className={`h-1.5 rounded-full ${BAR[b.status]}`} style={{ width: `${filled * 100}%` }} />
+      <div className="mt-1.5">
+        <BudgetBar b={b} size="sm" />
       </div>
       <p className="mt-1 text-sm text-muted tabular-nums">
         {formatINR(b.actual)} of {formatINR(b.target)}
+        {b.plannedLeft > 0 && ` · ${formatINR(b.plannedLeft)} still planned`}
       </p>
     </li>
   );

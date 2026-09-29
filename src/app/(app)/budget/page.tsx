@@ -6,6 +6,7 @@ import { getActiveRule, getFirstEntryDate, getTransactionsBetween } from "@/lib/
 import { getBudgetMonthStartDay, getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
 import { formatShare, headingLabel, periodLabel, statusLabel, streakLabel } from "@/lib/budget";
 import { filtersQuery } from "@/lib/entry-filters";
+import { BudgetBar } from "@/components/budget-bar";
 import { ChevronRightIcon } from "@/components/icons";
 import { budgetAdherence, plannedPayments, type BucketAdherence } from "@/lib/finance/budget";
 import { budgetMonthOf, daysElapsed, istDate, periodLength, shiftBudgetMonth } from "@/lib/finance/dates";
@@ -101,6 +102,11 @@ export default async function BudgetPage() {
           ))}
         </div>
 
+        <p className="-mt-2 text-sm text-muted">
+          The solid part of each bar is what&rsquo;s gone so far; the lighter part is planned payments still to come
+          this month. The mark is how much of the month has gone.
+        </p>
+
         {unassigned !== 0 && (
           <Card className="p-4 text-sm">
             <span className="font-medium tabular-nums">{formatINR(unassigned)}</span> went on categories without a
@@ -131,7 +137,6 @@ const STATUS_STYLE = {
 // Tapping a bucket shows its entries this month.
 function BucketCard({ b, elapsed, href }: { b: BucketAdherence; elapsed: number; href: string }) {
   const savings = b.bucket.holds_savings;
-  const filled = b.target > 0 ? Math.min(b.actual / b.target, 1) : b.actual > 0 ? 1 : 0;
   const streak = streakLabel(b);
   const heading = headingLabel(b);
   return (
@@ -153,13 +158,9 @@ function BucketCard({ b, elapsed, href }: { b: BucketAdherence; elapsed: number;
               {savings ? "saved" : "spent"} of {formatINR(b.target)}
             </span>
           </p>
-          {/* The bar is how much of the target is used; the tick is how much of the month has gone. */}
-          <div className="relative mt-2 h-2 rounded-full bg-foreground/[0.08]" aria-hidden>
-            <div
-              className={`h-2 rounded-full ${b.status === "over" ? "bg-negative" : b.status === "at_risk" ? "bg-warning" : "bg-accent"}`}
-              style={{ width: `${filled * 100}%` }}
-            />
-            <div className="absolute -top-1 h-4 w-0.5 rounded bg-foreground/40" style={{ left: `calc(${elapsed * 100}% - 1px)` }} />
+          {/* Spent, then planned still to come in a lighter shade; the tick is how much of the month has gone. */}
+          <div className="mt-2">
+            <BudgetBar b={b} elapsed={elapsed} />
           </div>
         </div>
         <dl className="grid grid-cols-2 gap-3 text-sm">

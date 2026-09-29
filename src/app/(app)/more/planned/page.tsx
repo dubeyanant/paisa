@@ -53,11 +53,11 @@ export default async function PlannedPage() {
           <Card className="grid grid-cols-2 gap-4 p-4 md:p-6">
             <div className="min-w-0">
               <p className="text-sm text-muted">Still to pay this month</p>
-              <p className="mt-0.5 truncate text-2xl font-semibold tracking-tight tabular-nums">{formatINR(planned)}</p>
+              <p className="mt-0.5 truncate text-2xl font-semibold tracking-tight text-planned tabular-nums">{formatINR(planned)}</p>
             </div>
             <div className="min-w-0">
               <p className="text-sm text-muted">Next 30 days</p>
-              <p className="mt-0.5 truncate text-2xl font-semibold tracking-tight tabular-nums">
+              <p className="mt-0.5 truncate text-2xl font-semibold tracking-tight text-planned tabular-nums">
                 {formatINR(overview.upcomingTotal)}
               </p>
             </div>
