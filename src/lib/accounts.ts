@@ -66,6 +66,7 @@ export type AccountInput = {
   statement_day: number | null;
   due_day: number | null;
   is_emergency_fund: boolean;
+  is_blocked: boolean;
 };
 
 type Parsed = { ok: true; values: AccountInput } | { ok: false; error: string };
@@ -111,6 +112,7 @@ export function parseAccountForm(form: FormData): Parsed {
       statement_day,
       due_day,
       is_emergency_fund: type === "savings" && form.get("is_emergency_fund") === "on",
+      is_blocked: (type === "bank" || type === "wallet") && form.get("is_blocked") === "on",
     },
   };
 }

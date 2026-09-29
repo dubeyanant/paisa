@@ -21,6 +21,7 @@ describe("parseAccountForm", () => {
         statement_day: null,
         due_day: null,
         is_emergency_fund: false,
+        is_blocked: false,
       },
     });
   });
@@ -55,6 +56,13 @@ describe("parseAccountForm", () => {
 
     const fund = parseAccountForm(form({ ...base, type: "savings", is_emergency_fund: "on" }));
     expect(fund).toMatchObject({ ok: true, values: { is_emergency_fund: true } });
+  });
+
+  test("only bank and wallet accounts can be blocked", () => {
+    const wallet = parseAccountForm(form({ ...base, type: "wallet", is_blocked: "on" }));
+    expect(wallet).toMatchObject({ ok: true, values: { is_blocked: true } });
+    const savings = parseAccountForm(form({ ...base, type: "savings", is_blocked: "on" }));
+    expect(savings).toMatchObject({ ok: true, values: { is_blocked: false } });
   });
 
   test.each([

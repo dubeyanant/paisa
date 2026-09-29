@@ -15,16 +15,18 @@ export default async function AccountsPage() {
   const summary = balanceSummary(accounts, new Map(accounts.map((a) => [a.id, a.balance])));
   const active = accounts.filter((a) => !a.archived_at);
   const archived = accounts.filter((a) => a.archived_at);
-  const has = (type: string) => accounts.some((a) => a.type === type);
 
+  // A figure of ₹0 says nothing, so it isn't shown (TD-18).
   const tiles = [
-    { label: "Available", hint: "Bank and cash", value: summary.available, show: true },
-    { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, show: has("credit_card") },
-    { label: "Card credit", hint: "In your favour", value: summary.cardCredit, show: summary.cardCredit > 0 },
-    { label: "Savings", hint: "Savings and investments", value: summary.savings, show: true },
-    { label: "Deposits", hint: "Comes back later", value: summary.deposits, show: has("deposit") },
-    { label: "Loans", hint: "Still owed", value: summary.loansOwed, show: has("loan") },
-  ].filter((t) => t.show);
+    { label: "Bank and cash", hint: "Blocked included", value: summary.available },
+    { label: "Blocked", hint: "Set aside to spend", value: summary.blocked },
+    { label: "Card dues", hint: "Owed on cards", value: summary.cardDues },
+    { label: "Card credit", hint: "In your favour", value: summary.cardCredit },
+    { label: "Savings", hint: "Savings and investments", value: summary.savings },
+    { label: "Deposits", hint: "Comes back later", value: summary.deposits },
+    { label: "Loans", hint: "Still owed", value: summary.loansOwed },
+    { label: "Net position", hint: "All you have, minus all you owe", value: summary.netPosition },
+  ].filter((t) => t.value !== 0);
 
   return (
     <>
@@ -39,12 +41,12 @@ export default async function AccountsPage() {
       />
 
       <Card className="p-4 md:p-6">
-        <p className="text-sm text-muted">Net position</p>
+        <p className="text-sm text-muted">Available to spend</p>
         <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums md:text-4xl">
-          <Amount value={summary.netPosition} />
+          <Amount value={summary.spendable} />
         </p>
-        <p className="mt-1 text-sm text-muted">Everything you have, minus everything you owe.</p>
-        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-6">
+        <p className="mt-1 text-sm text-muted">Bank and cash, minus blocked money and card dues.</p>
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-4">
           {tiles.map((tile) => (
             <div key={tile.label} className="min-w-0">
               <dt className="text-sm text-muted">{tile.label}</dt>
@@ -115,6 +117,7 @@ function AccountGroup({ title, accounts }: { title?: string; accounts: AccountWi
 function AccountRow({ account }: { account: AccountWithBalance }) {
   const details = [];
   if (account.is_emergency_fund) details.push("Emergency fund");
+  if (account.is_blocked) details.push("Blocked");
   if (account.statement_day) details.push(`Statement on the ${ordinal(account.statement_day)}`);
   if (account.due_day) details.push(`Due on the ${ordinal(account.due_day)}`);
 
