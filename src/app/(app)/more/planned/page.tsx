@@ -11,10 +11,10 @@ import { addDays } from "@/lib/finance/dates";
 import { detectRecurring } from "@/lib/finance/detection";
 import { formatINR } from "@/lib/finance/money";
 import { recurringCost } from "@/lib/finance/recurring";
-import { fundDetail } from "@/lib/funds";
 import { dayInSentence, describeSchedule, recurringOverview } from "@/lib/recurring";
 import { ComingUp } from "./coming-up";
 import { DueNow } from "./due-now";
+import { FundList } from "./funds/fund-list";
 import { commitmentDetail, dueRows, fallbackName, lookups, paidWith } from "./rows";
 
 export const metadata: Metadata = { title: "Planned · Paisa" };
@@ -241,32 +241,6 @@ function Funds({ funds, held, startDay }: { funds: FundRowState[]; held: number;
         </div>
       )}
     </section>
-  );
-}
-
-function FundList({ funds, startDay }: { funds: FundRowState[]; startDay: number }) {
-  return (
-    <Card>
-      <ul className="divide-y divide-line">
-        {funds.map((s) => (
-          <li key={s.fund.id}>
-            <Link href={`/more/planned/funds/${s.fund.id}`} className={listItem}>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{s.fund.name}</p>
-                <p className="truncate text-sm text-muted">{fundDetail(s, startDay)}</p>
-              </div>
-              <div className="shrink-0 text-right tabular-nums">
-                <p className={`font-medium ${s.closedAt ? "text-muted" : ""}`}>{formatINR(s.balance)}</p>
-                {s.fund.kind === "goal" && !s.closedAt && s.spent === 0 && (
-                  <p className="text-sm text-muted">of {formatINR(s.fund.target ?? 0)}</p>
-                )}
-              </div>
-              <ChevronRightIcon className="-mr-1 size-5 shrink-0 text-muted" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Card>
   );
 }
 

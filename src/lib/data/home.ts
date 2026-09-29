@@ -19,7 +19,7 @@ export async function getHomeInsights(
   loadingSummary: ReturnType<typeof getMoneySummary>,
   loadingLabels: ReturnType<typeof getLabels>,
 ) {
-  const [{ accounts, commitments, scheduled, month, today, funds, fundBudget }, labels, recent, rule, firstEntry] = await Promise.all([
+  const [{ accounts, commitments, scheduled, month, today, fundBudget }, labels, recent, rule, firstEntry] = await Promise.all([
     loadingSummary,
     loadingLabels,
     getRecentTransactions(daysBackFor(HISTORY_MONTHS)),
@@ -58,7 +58,6 @@ export async function getHomeInsights(
     : null;
 
   return {
-    funds,
     // A savings rate means something once the month is over: until then rent
     // and bills still to pay look like money saved. So it's last month's.
     savings: savingsTrend(transactions, accountsById, shiftBudgetMonth(month, -1), 2),

@@ -69,8 +69,8 @@ only what a fund holds is kept out of available to spend.
    `dev`; it has to merge into `main` before the screens (TD-3).
 2. **Screens:** More → Planned lists funds, and New has Once, Repeats and Save up. A fund's
    screen adds or takes out money, changes the schedule, closes it and shows its history.
-   Add and edit take "From fund". Home shows a Funds line under the budget and "In funds"
-   under available to spend. Budget counts money into funds, and pace leaves out what funds
+   Add and edit take "From fund". Home shows open funds in a card after Planned, and "In
+   funds" under available to spend. Budget counts money into funds, and pace leaves out what funds
    paid for. Pushed once step 1 is in `main`.
 3. **Owner's review:** the two kinds are a target fund (a guitar: a set amount over some
    months) and a recurring fund (clothes: a monthly amount up to a limit, filling back up
