@@ -907,7 +907,7 @@ describe("funds", () => {
     const goal = await fund({ name: "Laptop", kind: "goal", target: 9000000, schedule_from: "2026-08-01", ends_on: "2026-12-01" });
     const update = (id: string, userId: string | null = USER, endsOn = "2027-02-01") =>
       as(userId, () =>
-        rows("select public.update_fund($1, 'Laptop', null, 12000000, null, null, '2026-10-01', $2, $3)", [
+        rows("select public.update_fund($1, 'Laptop', null, 12000000, null, null, '2026-10-01', $2, false, $3)", [
           id,
           endsOn,
           JSON.stringify([
@@ -917,8 +917,8 @@ describe("funds", () => {
         ]),
       );
     await update(goal);
-    const [row] = await rows("select target, schedule_from::text, ends_on::text from funds where id = $1", [goal]);
-    expect(row).toEqual({ target: 12000000, schedule_from: "2026-10-01", ends_on: "2027-02-01" });
+    const [row] = await rows("select target, schedule_from::text, ends_on::text, closes_when_spent from funds where id = $1", [goal]);
+    expect(row).toEqual({ target: 12000000, schedule_from: "2026-10-01", ends_on: "2027-02-01", closes_when_spent: false });
     const kept = await rows("select amount, is_monthly from fund_moves where fund_id = $1 order by occurred_at", [goal]);
     expect(kept).toEqual([
       { amount: 1800000, is_monthly: true },

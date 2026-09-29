@@ -10,10 +10,10 @@ create table public.funds (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null check (length(trim(name)) between 1 and 60),
-  -- goal:    saves `target` in even shares over the budget months up to the one
-  --          containing ends_on, then pays for one purchase and closes.
-  -- ongoing: saves monthly_amount every budget month, stopping at `cap` if set,
-  --          and pays for any number of spends.
+  -- goal:    a target fund. Saves `target` in even shares over the budget
+  --          months up to the one containing ends_on.
+  -- ongoing: a recurring fund. Saves monthly_amount every budget month while
+  --          it holds less than `cap`, so it fills back up after spends.
   kind text not null check (kind in ('goal', 'ongoing')),
   -- The budget bucket money going in counts toward (FR-7).
   bucket_id uuid,
@@ -26,6 +26,9 @@ create table public.funds (
   schedule_from date not null,
   -- A goal's last month: a date in it.
   ends_on date,
+  -- A goal that closes at its first expense, freeing what's left. Off for a
+  -- goal spent a bit at a time, such as a trip.
+  closes_when_spent boolean not null default true,
   -- Closed by hand: what's left goes back to being free to spend.
   closed_at timestamptz,
   created_at timestamptz not null default now(),
@@ -186,6 +189,7 @@ create function public.update_fund(
   new_cap bigint,
   new_schedule_from date,
   new_ends_on date,
+  new_closes_when_spent boolean,
   kept jsonb default '[]'
 )
 returns void
@@ -200,7 +204,8 @@ begin
          monthly_amount = new_monthly,
          cap = new_cap,
          schedule_from = new_schedule_from,
-         ends_on = new_ends_on
+         ends_on = new_ends_on,
+         closes_when_spent = new_closes_when_spent
    where id = fund and closed_at is null;
   if not found then
     raise exception 'Fund not found or closed' using errcode = 'P0002';
@@ -213,5 +218,5 @@ begin
 end;
 $$;
 
-revoke all on function public.update_fund(uuid, text, uuid, bigint, bigint, bigint, date, date, jsonb) from public, anon, authenticated;
-grant execute on function public.update_fund(uuid, text, uuid, bigint, bigint, bigint, date, date, jsonb) to authenticated;
+revoke all on function public.update_fund(uuid, text, uuid, bigint, bigint, bigint, date, date, boolean, jsonb) from public, anon, authenticated;
+grant execute on function public.update_fund(uuid, text, uuid, bigint, bigint, bigint, date, date, boolean, jsonb) to authenticated;
