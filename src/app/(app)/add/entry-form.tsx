@@ -5,7 +5,8 @@ import { useGoBack } from "@/components/back";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { PlusIcon } from "@/components/icons";
 import { buttonClass, inputClass } from "@/components/ui";
-import type { AccountOption, Entry, SubcategoryOption } from "@/lib/data/entries";
+import { tagSuggested } from "@/lib/categories";
+import type { AccountOption, Entry, SubcategoryOption, TagOption } from "@/lib/data/entries";
 import {
   ENTRY_KINDS,
   MAX_LINES,
@@ -16,13 +17,16 @@ import {
   type EntryKind,
   type QuickPick,
 } from "@/lib/entry";
-import { toIstDateTimeInput } from "@/lib/finance/dates";
+import { istDate, toIstDateTimeInput } from "@/lib/finance/dates";
 import { formatINR, parseRupees, toRupeesInput } from "@/lib/finance/money";
+import { createTag } from "../more/tags/actions";
 import { deleteEntries, saveEntry, updateEntry, type EntryResult } from "./actions";
 
 export type EntryFormProps = {
   accounts: AccountOption[];
   subcategories: SubcategoryOption[];
+  // Newest first.
+  tags: TagOption[];
   picks: QuickPick[];
   frequent: { expense: string[]; income: string[] };
   // [category kind + "|" + normalised note, subcategory id]
@@ -81,6 +85,7 @@ export function EntryForm(props: EntryFormProps) {
   const [showDescription, setShowDescription] = useState(Boolean(source?.description));
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [tagIds, setTagIds] = useState<string[]>(source?.tag_ids ?? []);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState<Saved>();
   const [pending, startTransition] = useTransition();
@@ -161,6 +166,7 @@ export function EntryForm(props: EntryFormProps) {
       occurred_at: when,
       description,
       lines: lines.map(({ id, amount, subcategory_id, note }) => ({ id, amount, subcategory_id, note })),
+      tag_ids: tagIds,
     };
   }
 
@@ -195,6 +201,7 @@ export function EntryForm(props: EntryFormProps) {
       setDescription("");
       setShowDescription(false);
       setShowAllCategories(false);
+      setTagIds([]);
       amountRef.current?.focus();
       router.refresh();
     });
@@ -423,6 +430,14 @@ export function EntryForm(props: EntryFormProps) {
         {futureWhen && <p className="mt-2 text-sm text-muted">A future date saves this as planned. It won&apos;t count until then.</p>}
       </Field>
 
+      <TagPicker
+        tags={props.tags}
+        selected={tagIds}
+        onChange={setTagIds}
+        // Suggestions follow the entry's date (FR-5).
+        date={when === null ? istDate(new Date()) : when.slice(0, 10)}
+      />
+
       {showDescription ? (
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">Description</span>
@@ -613,6 +628,142 @@ function ExtraLine({
         className={inputClass}
       />
     </fieldset>
+  );
+}
+
+// Tags for the entry (FR-5). Tags whose dates cover the entry's date are
+// suggested, but only added when tapped.
+function TagPicker({
+  tags,
+  selected,
+  onChange,
+  date,
+}: {
+  tags: TagOption[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+  date: string;
+}) {
+  const [open, setOpen] = useState(selected.length > 0);
+  const [showAll, setShowAll] = useState(false);
+  // Made here, before the screen reloads with them.
+  const [created, setCreated] = useState<TagOption[]>([]);
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string>();
+  const [pending, startTransition] = useTransition();
+
+  const all = [...created.filter((c) => !tags.some((t) => t.id === c.id)), ...tags];
+  const suggested = all.filter((t) => tagSuggested(t, date));
+  const toggle = (id: string) =>
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+
+  function create() {
+    setError(undefined);
+    startTransition(async () => {
+      try {
+        const result = await createTag(name);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setCreated((c) => [{ id: result.id, name: name.trim(), starts_on: null, ends_on: null }, ...c]);
+        onChange([...selected, result.id]);
+        setName("");
+      } catch {
+        setError("Couldn't reach Paisa. Check your connection and try again.");
+      }
+    });
+  }
+
+  if (!open) {
+    const offer = suggested.filter((t) => !selected.includes(t.id));
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setOpen(true)} className="h-11 text-sm font-medium text-accent">
+          Add a tag
+        </button>
+        {offer.map((tag) => (
+          <button
+            key={tag.id}
+            type="button"
+            onClick={() => {
+              toggle(tag.id);
+              setOpen(true);
+            }}
+            className="flex min-h-11 items-center gap-1.5 rounded-xl border border-dashed border-accent px-3 text-sm"
+          >
+            <PlusIcon className="size-4 text-accent" />
+            {tag.name}
+            <span className="text-xs text-muted">Suggested</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Selected and suggested first, then the newest few, or every tag.
+  const first = all.filter((t) => selected.includes(t.id) || suggested.includes(t));
+  const rest = all.filter((t) => !first.includes(t));
+  const shown = [...first, ...(showAll ? rest : rest.slice(0, Math.max(0, 8 - first.length)))];
+  const hiddenCount = all.length - shown.length;
+
+  return (
+    <section aria-label="Tags" className="flex flex-col gap-2">
+      <h2 className="text-sm font-medium">
+        Tags <span className="font-normal text-muted">· Optional</span>
+      </h2>
+      {shown.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {shown.map((tag) => {
+            const on = selected.includes(tag.id);
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggle(tag.id)}
+                className={`flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-[15px] transition-colors ${
+                  on ? "border-accent bg-accent-soft font-medium text-accent" : "border-line bg-surface hover:border-accent"
+                }`}
+              >
+                {tag.name}
+                {!on && suggested.includes(tag) && <span className="text-xs text-muted">Suggested</span>}
+              </button>
+            );
+          })}
+          {hiddenCount > 0 && (
+            <button type="button" onClick={() => setShowAll(true)} className="h-11 px-1 text-sm font-medium text-accent">
+              All tags ({all.length})
+            </button>
+          )}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (name.trim()) create();
+            }
+          }}
+          maxLength={60}
+          autoComplete="off"
+          placeholder="New tag, like Goa Trip"
+          aria-label="New tag"
+          className={`${inputClass} min-w-0 flex-1`}
+        />
+        <button type="button" onClick={create} disabled={pending || !name.trim()} className={`${buttonClass.secondary} h-12`}>
+          {pending ? "Adding…" : "Add tag"}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-negative">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

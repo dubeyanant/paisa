@@ -117,6 +117,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Recurring commitments are templates.** Their pending entries are worked out from the schedule, not stored. Confirming one creates a transaction linked through `recurring_id`.
   - **Defaults:** a trigger on `auth.users` creates each user's settings, the 50/30/20 rule and the BRD §10 categories.
   - **Integrity:** references between tables include `user_id`, so rows can't point at another user's rows. Accounts, categories and subcategories that have transactions can't be deleted.
+  - **New subcategories:** a new expense subcategory is given a bucket in the active rule when it's created. Other rules count it as unassigned until it's given one there.
   - **Tests:** `supabase/tests/migrations.test.ts` runs every migration on an in-memory Postgres (PGlite) with a stand-in for Supabase's auth, then checks defaults, RLS and constraints. It runs in CI, because preview databases are off and a migration would otherwise run for the first time in production.
 - **Why:** These rules keep every figure exact and consistent (NFR-5), keep the data private (NFR-6), and make the flexibility in FR-4 and FR-7 possible without losing history.
 

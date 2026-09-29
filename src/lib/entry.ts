@@ -173,6 +173,8 @@ export type EntryInput = {
   occurred_at: string | null;
   description: string;
   lines: EntryLineInput[];
+  // Tags for every line (FR-5).
+  tag_ids?: string[];
 };
 
 export type TransactionInsert = {
@@ -190,13 +192,14 @@ export type TransactionInsert = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_LINES = 20;
+export const MAX_TAGS = 10;
 
 // Turns what was entered into rows to insert. Every line shares the kind,
 // account, date and time (FR-2 AC3). A future date makes the entry planned (BR-7).
 export function parseEntry(
   input: EntryInput,
   now: Date,
-): { ok: true; rows: TransactionInsert[] } | { ok: false; error: string } {
+): { ok: true; rows: TransactionInsert[]; tagIds: string[] } | { ok: false; error: string } {
   const fail = (error: string) => ({ ok: false as const, error });
 
   if (!ENTRY_KINDS.some((k) => k.kind === input.kind)) return fail("Choose what kind of entry this is.");
@@ -218,6 +221,10 @@ export function parseEntry(
 
   const description = String(input.description ?? "").trim();
   if (description.length > 500) return fail("Keep the description to 500 characters or fewer.");
+
+  const tagIds = [...new Set(Array.isArray(input.tag_ids) ? input.tag_ids : [])];
+  if (tagIds.length > MAX_TAGS) return fail(`Add at most ${MAX_TAGS} tags.`);
+  if (!tagIds.every((id) => UUID.test(String(id)))) return fail("Something went wrong. Reload and try again.");
 
   const rows: TransactionInsert[] = [];
   for (const [index, line] of lines.entries()) {
@@ -245,5 +252,5 @@ export function parseEntry(
       is_planned: when.getTime() > now.getTime(),
     });
   }
-  return { ok: true, rows };
+  return { ok: true, rows, tagIds };
 }
