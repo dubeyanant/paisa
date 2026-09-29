@@ -36,3 +36,23 @@ export function assertPaise(value: number) {
     throw new Error(`Expected a whole number of paise, got ${value}`);
   }
 }
+
+// Like parseRupees, but also accepts a leading minus ("-1,250"), for balances
+// that can go below zero.
+export function parseSignedRupees(input: string): number | null {
+  const trimmed = input.trim();
+  const negative = trimmed.startsWith("-");
+  const paise = parseRupees(negative ? trimmed.slice(1) : trimmed);
+  if (paise === null) return null;
+  return negative ? 0 - paise : paise; // not -paise, which turns 0 into -0
+}
+
+// Paise as a plain number to put in an input field: 1250000 -> "12500",
+// 12050 -> "120.50". No ₹ sign or grouping, so it parses back unchanged.
+export function toRupeesInput(paise: number): string {
+  assertPaise(paise);
+  const sign = paise < 0 ? "-" : "";
+  const abs = Math.abs(paise);
+  const rest = abs % 100;
+  return `${sign}${Math.floor(abs / 100)}${rest === 0 ? "" : `.${String(rest).padStart(2, "0")}`}`;
+}

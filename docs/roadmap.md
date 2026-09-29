@@ -13,7 +13,7 @@ Last updated: 2026-09-29.
 | 2 | Sign-in: email and password, sign-ups closed (FR-13) | Done | PR #2, TD-10 |
 | 3 | Core database schema, owner-only RLS, default categories | Done | PRs #3 and #5, TD-13 |
 | 4 | Calculation library: money, IST dates, balances, totals, budgets | Done | PR #4, `src/lib/finance/` |
-| 5 | **App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3)** | **Next** | |
+| 5 | **App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3)** | **In progress:** 5a in review, 5b (fast entry) next | TD-14, TD-15 |
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | To do | |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
 | 8 | Recurring commitments and budget rules (FR-6, FR-7) | To do | |
@@ -38,8 +38,8 @@ step 5 on works against real data from day one.
   "Pay bill" or "Repay loan" (TD-13).
 - **Data access.** Every page and Server Function calls `requireUser()` (TD-10), and
   figures come from `src/lib/finance/` so every screen agrees (NFR-5).
-- **Decide when this step starts:** installability and offline entry (NFR-2, NFR-4).
-  See "Open decisions" in `tech-decisions.md`.
+- **Installable, online only** (TD-14). Balances are summed in the database (TD-15).
+- **Two PRs.** 5a: app shell, Accounts screen and installability. 5b: fast entry.
 
 ## Later
 

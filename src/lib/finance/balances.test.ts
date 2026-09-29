@@ -69,10 +69,31 @@ describe("balance summary", () => {
     expect(balanceSummary(accounts, balances)).toEqual({
       available: 5050000,
       cardDues: 1234567,
+      cardCredit: 0,
       savings: 2500000,
       deposits: 0,
       loansOwed: 0,
       netPosition: 5050000 + 2500000 - 1234567,
+    });
+  });
+
+  test("adds up what's owed on each card, without netting a card in credit", () => {
+    const accounts = [
+      account("bank", "bank"),
+      account("cashback", "credit_card"),
+      account("travel", "credit_card"),
+      account("shopping", "credit_card"),
+    ];
+    const balances = new Map([
+      ["bank", 1000000],
+      ["cashback", -395050],
+      ["travel", 150000], // in credit
+      ["shopping", -200000],
+    ]);
+    expect(balanceSummary(accounts, balances)).toMatchObject({
+      cardDues: 395050 + 200000,
+      cardCredit: 150000,
+      netPosition: 1000000 + 150000 - 395050 - 200000,
     });
   });
 
