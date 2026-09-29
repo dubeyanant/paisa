@@ -7,6 +7,10 @@ export type Account = {
   id: string;
   type: AccountType;
   opening_balance: number;
+  // Only the insights that need these read them (INS-03, INS-11).
+  is_emergency_fund?: boolean;
+  statement_day?: number | null;
+  due_day?: number | null;
 };
 
 export type TransactionKind = "expense" | "income" | "refund" | "transfer" | "adjustment";
@@ -21,6 +25,9 @@ export type Transaction = {
   subcategory_id: string | null;
   is_planned: boolean;
   bucket_override_id: string | null;
+  // Only recurring commitments and their insights read these (FR-6, INS-09).
+  note?: string | null;
+  recurring_id?: string | null;
 };
 
 export type BudgetBucket = {
@@ -28,4 +35,29 @@ export type BudgetBucket = {
   name: string;
   share_bp: number;
   holds_savings: boolean;
+};
+
+// A recurring commitment (FR-6). Its due dates are worked out from the
+// schedule, not stored (TD-13).
+export type Commitment = {
+  id: string;
+  kind: "expense" | "transfer";
+  // Expected amount. For a variable bill it's an estimate.
+  amount: number;
+  is_variable: boolean;
+  account_id: string;
+  to_account_id: string | null;
+  subcategory_id: string | null;
+  // Due every `every` `unit`s from first_due_on, until ends_on if set.
+  unit: "week" | "month" | "year";
+  every: number;
+  first_due_on: string;
+  ends_on: string | null;
+  paused_at: string | null;
+};
+
+export type Tag = {
+  id: string;
+  starts_on: string | null;
+  ends_on: string | null;
 };

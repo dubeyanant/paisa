@@ -1,6 +1,6 @@
-import type { Period } from "./dates";
+import { daysElapsed, periodLength, recentPeriods, type Period } from "./dates";
 import { assertPaise } from "./money";
-import { actualsIn, savingsFlow } from "./totals";
+import { actualsIn, periodTotals, savingsFlow } from "./totals";
 import type { Account, BudgetBucket, Transaction } from "./types";
 
 const FULL_SHARE_BP = 10000; // 100%
@@ -87,4 +87,98 @@ export function bucketActuals(
     }
   }
   return { byBucket, unassigned };
+}
+
+// INS-17 Budget rule adherence ------------------------------------------------
+
+export type BudgetRule = {
+  base: "income" | "fixed";
+  fixed_base: number | null;
+  buckets: BudgetBucket[];
+  // Subcategory → bucket.
+  assignments: Map<string, string>;
+};
+
+export type BucketStatus = "on_track" | "at_risk" | "over";
+
+export type BucketAdherence = {
+  bucket: BudgetBucket;
+  target: number;
+  actual: number;
+  // target − actual. For the savings bucket, what's still to save.
+  remaining: number;
+  // actual ÷ base ("Wants at 36% vs 30% target"), or null with no base.
+  shareOfBase: number | null;
+  // A spending bucket is over past its target, and at risk while ahead of the
+  // pace that reaches the target on the last day. The savings bucket is at risk
+  // while behind that pace, and never over.
+  status: BucketStatus;
+  // Complete months off target in a row just before this one, plus this one if
+  // it's already over: "3rd month over".
+  streak: number;
+  // Complete months, oldest first.
+  history: { period: Period; target: number; actual: number; onTarget: boolean }[];
+};
+
+function onTarget(bucket: BudgetBucket, actual: number, target: number): boolean {
+  return bucket.holds_savings ? actual >= target : actual <= target;
+}
+
+export function budgetAdherence(
+  transactions: Transaction[],
+  rule: BudgetRule,
+  accountsById: Map<string, Account>,
+  current: Period,
+  today: string,
+  historyMonths = 6,
+): { base: number; buckets: BucketAdherence[]; unassigned: number } {
+  const month = (period: Period) => {
+    const base = budgetBase(rule, periodTotals(transactions, accountsById, period).income);
+    return {
+      period,
+      base,
+      targets: bucketTargets(base, rule.buckets),
+      actuals: bucketActuals(transactions, rule, accountsById, period),
+    };
+  };
+  const now = month(current);
+  const past = recentPeriods(current, historyMonths + 1).slice(0, -1).map(month);
+  const elapsed = daysElapsed(current, today);
+  const length = periodLength(current);
+
+  const buckets = rule.buckets.map((bucket): BucketAdherence => {
+    const target = now.targets.get(bucket.id)!;
+    const actual = now.actuals.byBucket.get(bucket.id)!;
+    // actual ÷ elapsed vs target ÷ length, without dividing.
+    const aheadOfPace = actual * length > target * elapsed;
+    const status: BucketStatus = bucket.holds_savings
+      ? actual * length >= target * elapsed
+        ? "on_track"
+        : "at_risk"
+      : actual > target
+        ? "over"
+        : aheadOfPace
+          ? "at_risk"
+          : "on_track";
+
+    const history = past.map((m) => {
+      const t = m.targets.get(bucket.id)!;
+      const a = m.actuals.byBucket.get(bucket.id)!;
+      return { period: m.period, target: t, actual: a, onTarget: onTarget(bucket, a, t) };
+    });
+    let streak = status === "over" ? 1 : 0;
+    for (let i = history.length - 1; i >= 0 && !history[i].onTarget; i--) streak++;
+
+    return {
+      bucket,
+      target,
+      actual,
+      remaining: target - actual,
+      shareOfBase: now.base > 0 ? actual / now.base : null,
+      status,
+      streak,
+      history,
+    };
+  });
+  return { base: now.base, buckets, unassigned: now.actuals.unassigned };
 }

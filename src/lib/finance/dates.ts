@@ -91,3 +91,24 @@ export function typicalMonthPeriods(current: Period, firstDate: string | null): 
   }
   return periods;
 }
+
+// The last moment of an IST calendar date.
+export function istEndOf(date: string): Date {
+  return new Date(istStartOf(addDays(date, 1)).getTime() - 1);
+}
+
+// The last `count` budget months, oldest first, ending with `current`.
+export function recentPeriods(current: Period, count: number): Period[] {
+  return Array.from({ length: count }, (_, i) => shiftBudgetMonth(current, i - count + 1));
+}
+
+// The part of the period up to and including `today`.
+export function periodSoFar(period: Period, today: string): Period {
+  const end = addDays(today, 1);
+  return { start: period.start, end: end < period.end ? end : period.end };
+}
+
+// Days of the period gone by as of `today`, today included.
+export function daysElapsed(period: Period, today: string): number {
+  return Math.min(Math.max(daysBetween(period.start, today) + 1, 0), periodLength(period));
+}

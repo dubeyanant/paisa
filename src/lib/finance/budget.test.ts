@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { bucketActuals, bucketProblem, bucketTargets, budgetBase } from "./budget";
+import { bucketActuals, bucketProblem, bucketTargets, budgetAdherence, budgetBase } from "./budget";
 import { budgetMonthOf } from "./dates";
-import { account, byId, tx } from "./fixtures";
+import { account, at, byId, tx } from "./fixtures";
 import type { BudgetBucket } from "./types";
 
 const fiftyThirtyTwenty: BudgetBucket[] = [
@@ -136,5 +136,52 @@ describe("bucket actuals", () => {
       tx({ kind: "transfer", amount: 300000, account_id: "mf", to_account_id: "bank" }),
     ];
     expect(bucketActuals(transactions, rule, accounts, sep).byBucket.get("savings")).toBe(700000);
+  });
+});
+
+describe("INS-17 budget rule adherence", () => {
+  const accounts = byId([account("bank", "bank"), account("mf", "savings")]);
+  const rule = {
+    base: "fixed" as const,
+    fixed_base: 6000000,
+    buckets: fiftyThirtyTwenty,
+    assignments: new Map([
+      ["rent", "needs"],
+      ["eating-out", "wants"],
+    ]),
+  };
+  const sep = budgetMonthOf("2026-09-01");
+  const wants = (amount: number, date: string) =>
+    tx({ kind: "expense", amount, subcategory_id: "eating-out", occurred_at: at(date) });
+
+  test("Wants at 36% vs a 30% target, 3rd month over", () => {
+    const transactions = [
+      wants(1900000, "2026-07-10"),
+      wants(1850000, "2026-08-10"),
+      wants(2160000, "2026-09-10"),
+      tx({ kind: "transfer", amount: 600000, to_account_id: "mf", occurred_at: at("2026-09-02") }),
+    ];
+    const { buckets } = budgetAdherence(transactions, rule, accounts, sep, "2026-09-15", 3);
+    const byId = new Map(buckets.map((b) => [b.bucket.id, b]));
+    expect(byId.get("wants")).toMatchObject({
+      target: 1800000,
+      actual: 2160000,
+      remaining: -360000,
+      shareOfBase: 0.36,
+      status: "over",
+      streak: 3,
+    });
+    expect(byId.get("wants")!.history.map((h) => h.onTarget)).toEqual([true, false, false]);
+    // Halfway through the month with half the savings target saved.
+    expect(byId.get("savings")).toMatchObject({ actual: 600000, status: "on_track" });
+    expect(byId.get("needs")).toMatchObject({ actual: 0, status: "on_track", streak: 0 });
+  });
+
+  test("ahead of pace is at risk; savings behind pace is at risk", () => {
+    const transactions = [wants(1000000, "2026-09-02")];
+    const { buckets } = budgetAdherence(transactions, rule, accounts, sep, "2026-09-10", 0);
+    const byId = new Map(buckets.map((b) => [b.bucket.id, b]));
+    expect(byId.get("wants")?.status).toBe("at_risk");
+    expect(byId.get("savings")?.status).toBe("at_risk");
   });
 });

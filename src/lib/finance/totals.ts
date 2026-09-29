@@ -75,3 +75,19 @@ export function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
 }
+
+// Spending (expenses − refunds) of the confirmed transactions in the period
+// that pass `keep`.
+export function spendingWhere(
+  transactions: Transaction[],
+  period: Period,
+  keep: (t: Transaction) => boolean,
+): number {
+  let total = 0;
+  for (const t of actualsIn(transactions, period)) {
+    if (!keep(t)) continue;
+    if (t.kind === "expense") total += t.amount;
+    else if (t.kind === "refund") total -= t.amount;
+  }
+  return total;
+}
