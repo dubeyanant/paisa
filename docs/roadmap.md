@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 8 done, planned payments added).
+Last updated: 2026-09-29 (step 8 done, step 9 started with Home).
 
 ## Phase 1: replace the old app
 
@@ -16,8 +16,8 @@ Last updated: 2026-09-29 (step 8 done, planned payments added).
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Done | PRs #12 to #15, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
-| 8 | Recurring commitments and budget rules (FR-6, FR-7) | Done | PRs #16 to #21 and the planned payments PR, TD-16, TD-18 |
-| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
+| 8 | Recurring commitments and budget rules (FR-6, FR-7) | Done | PRs #16 to #22, TD-16, TD-18 |
+| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | In progress: Home done, Insights and tag reports to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
 It also covers the Phase 2 insights INS-07, 08, 11, 12, 15 and 18, which cost little
@@ -25,6 +25,25 @@ once the rest existed; their screens stay in Phase 2.
 
 The owner's history is already in the production database, so every screen from
 step 5 on works against real data from day one.
+
+## Step 9 in detail
+
+Step 9 ships in three PRs based on `main`. None needs a migration.
+
+- **9a: Home (FR-8).** Available to spend leads. Below it, this month at a glance: free
+  money left with committed vs free (INS-01), spending against a usual month (INS-04),
+  savings rate against last month (INS-02) and each budget bucket (INS-17). The top 3
+  alerts (INS-19) come next, then Due now, the next 3 planned payments with the 30-day
+  total (INS-10), and the latest entries. Overdue payments aren't among Home's alerts,
+  since Due now lists them with a Confirm button. Headlines are in `src/lib/home.ts`.
+- **9b: Insights screen (FR-8.4).** INS-03 to 06 and 09, each with a headline, and charts
+  with Recharts (TD-17). Wide charts can be laptop-only, with a short stand-in on a phone.
+- **9c: tag reports (INS-13).** On a tag's screen: total, days, cost per day, the
+  breakdown by category and a comparison with other tags.
+
+Phase 1 is done after 9c, once the owner has used Paisa for a week (the owner's call;
+the BRD's exit criterion says 2 weeks). The owner already logs everything in Paisa, not
+the old app, so no second import is needed.
 
 ## Step 8 in detail
 
@@ -73,8 +92,6 @@ and the Entries screen filtered by that tag show its total.
 
 ## Later
 
-- **Phase 2:** remaining insights, optional AI (FR-10), export and backup (FR-11),
-  budget month start day in settings (FR-12).
+- **Phase 2:** remaining insights, optional AI (FR-10), export and backup (FR-11).
+  The budget month start day (FR-12) already shipped with step 8.
 - **Phase 3:** AI-5 to AI-7, INS-14, INS-16, polish.
-- **Before the owner stops using the old app:** re-run the history import on a fresh
-  export. It skips rows already imported (TD-12).
