@@ -13,6 +13,10 @@
   --accent-soft: #e4f1ee;
   --negative: #b42318;
   --warning: #a15c07;
+  /* Kinds of money (owner, 2026-09-29): free to spend, planned, saved. */
+  --spendable: #2f9e44;
+  --planned: #c2620a;
+  --saving: #1b7a34;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,6 +31,9 @@
     --accent-soft: #15302b;
     --negative: #f97066;
     --warning: #fdb022;
+    --spendable: #8ce99a;
+    --planned: #fdba74;
+    --saving: #40c057;
   }
 }
 
@@ -41,6 +48,9 @@
   --color-accent-soft: var(--accent-soft);
   --color-negative: var(--negative);
   --color-warning: var(--warning);
+  --color-spendable: var(--spendable);
+  --color-planned: var(--planned);
+  --color-saving: var(--saving);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

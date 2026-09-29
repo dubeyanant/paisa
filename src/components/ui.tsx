@@ -41,7 +41,8 @@ export const buttonClass = {
 export const inputClass =
   "h-12 w-full rounded-xl border border-line bg-surface px-3 text-base outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/25";
 
-// An amount in rupees; negative ones in red.
-export function Amount({ value }: { value: number }) {
-  return <span className={value < 0 ? "text-negative" : undefined}>{formatINR(value)}</span>;
+// An amount in rupees; negative ones in red, others in `className` (a colour
+// for the kind of money, like text-planned).
+export function Amount({ value, className }: { value: number; className?: string }) {
+  return <span className={value < 0 ? "text-negative" : className}>{formatINR(value)}</span>;
 }

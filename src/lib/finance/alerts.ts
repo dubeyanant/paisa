@@ -82,7 +82,8 @@ export function alerts(sources: AlertSources): Alert[] {
     if (impact >= MIN_PRICE_ALERT) found.push({ kind: "price", payment, impact });
   }
   for (const adherence of sources.budget ?? []) {
-    if (adherence.status === "over" && adherence.actual - adherence.target >= MIN_ALERT) {
+    // A target of ₹0 means no income has come in yet this month, not overspending.
+    if (adherence.status === "over" && adherence.target > 0 && adherence.actual - adherence.target >= MIN_ALERT) {
       found.push({ kind: "bucket", adherence, impact: adherence.actual - adherence.target });
     }
   }
