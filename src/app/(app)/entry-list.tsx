@@ -11,10 +11,13 @@ export function EntryList({
   entries,
   accounts,
   subcategories,
+  showPlanned = false,
 }: {
   entries: Entry[];
   accounts: AccountOption[];
   subcategories: SubcategoryOption[];
+  // Marks planned entries, where they aren't already in a list of their own.
+  showPlanned?: boolean;
 }) {
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const subById = new Map(subcategories.map((s) => [s.id, s]));
@@ -41,7 +44,14 @@ export function EntryList({
                       className="flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-foreground/[0.03]"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{d.title}</p>
+                        <p className="flex items-center gap-2 font-medium">
+                          <span className="truncate">{d.title}</span>
+                          {showPlanned && entry.is_planned && (
+                            <span className="shrink-0 rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-xs font-medium text-muted">
+                              Planned
+                            </span>
+                          )}
+                        </p>
                         <p className="truncate text-sm text-muted">
                           {istTime(entry.occurred_at)} · {d.detail}
                         </p>

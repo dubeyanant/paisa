@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { getAccount } from "@/lib/data/accounts";
 import { istDate } from "@/lib/finance/dates";
 import { AccountForm } from "../account-form";
+import { BalanceCard } from "./balance-card";
 
 export const metadata: Metadata = { title: "Edit account · Paisa" };
 
@@ -12,6 +13,8 @@ export default async function EditAccountPage({ params }: PageProps<"/accounts/[
   return (
     <>
       <PageHeader title={account.name} back={{ href: "/accounts", label: "Back to accounts" }} />
+      <BalanceCard account={account} />
+      <h2 className="mb-4 text-lg font-semibold">Details</h2>
       <AccountForm account={account} entryCount={entryCount} today={istDate(new Date())} />
     </>
   );

@@ -144,7 +144,16 @@ describe("parseEntry", () => {
           is_planned: false,
         },
       ],
+      tagIds: [],
     });
+  });
+
+  test("takes tags for the whole entry, once each (FR-5)", () => {
+    const TRIP = "00000000-0000-4000-8000-0000000000f1";
+    expect(parseEntry({ ...base, tag_ids: [TRIP, TRIP] }, now)).toMatchObject({ ok: true, tagIds: [TRIP] });
+    expect(parseEntry({ ...base, tag_ids: ["not-a-tag"] }, now).ok).toBe(false);
+    const many = Array.from({ length: 11 }, (_, i) => `00000000-0000-4000-8000-0000000000${String(i + 10)}`);
+    expect(parseEntry({ ...base, tag_ids: many }, now)).toEqual({ ok: false, error: "Add at most 10 tags." });
   });
 
   test("gives every line the same date and time (FR-2 AC3)", () => {

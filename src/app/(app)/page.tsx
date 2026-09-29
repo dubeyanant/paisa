@@ -54,7 +54,14 @@ export default async function Home() {
             </section>
           )}
           <section>
-            <h2 className="mb-3 text-lg font-semibold">Latest</h2>
+            <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Latest</h2>
+              {latest.length > 0 && (
+                <Link href="/entries" className="flex h-11 items-center text-sm font-medium text-accent">
+                  See all
+                </Link>
+              )}
+            </div>
             {latest.length > 0 ? (
               <EntryList entries={latest} {...labels} />
             ) : (

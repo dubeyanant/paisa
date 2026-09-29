@@ -117,6 +117,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Recurring commitments are templates.** Their pending entries are worked out from the schedule, not stored. Confirming one creates a transaction linked through `recurring_id`.
   - **Defaults:** a trigger on `auth.users` creates each user's settings, the 50/30/20 rule and the BRD §10 categories.
   - **Integrity:** references between tables include `user_id`, so rows can't point at another user's rows. Accounts, categories and subcategories that have transactions can't be deleted.
+  - **New subcategories:** a new expense subcategory is given a bucket in the active rule when it's created. Other rules count it as unassigned until it's given one there.
   - **Tests:** `supabase/tests/migrations.test.ts` runs every migration on an in-memory Postgres (PGlite) with a stand-in for Supabase's auth, then checks defaults, RLS and constraints. It runs in CI, because preview databases are off and a migration would otherwise run for the first time in production.
 - **Why:** These rules keep every figure exact and consistent (NFR-5), keep the data private (NFR-6), and make the flexibility in FR-4 and FR-7 possible without losing history.
 
@@ -156,6 +157,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Charts are Client Components. The headline and figures around a chart render on the server, so a screen reads fine before its charts load (FR-8 AC2).
   - Colours come from the theme tokens in `globals.css` (`var(--accent)` and so on), so charts follow light and dark mode (NFR-7).
   - Small shapes such as a progress bar or a budget meter stay plain HTML and CSS; they don't need a library.
+  - **Phone and laptop (owner, 2026-09-29):** what's used day to day works fully on a phone (adding, entries, balances, free money, budget status, alerts), and every insight keeps its headline and figure there. A chart or table too wide or dense for a phone, such as a multi-series trend or a month-by-category table, can be laptop-only. The phone then shows a compact stand-in, such as the top few items, with a note that the full view is on a larger screen.
 - **Why:** Recharts draws SVG, so it takes colours from CSS variables and resizes to fit a phone or a laptop (NFR-1). It covers every chart the insights need (bars, stacked bars, lines, areas, donuts) with little code, and supports React 19. Chart.js draws on a canvas, which can't read CSS variables; ECharts is much larger; visx and D3 need far more code for each chart.
 
 ## Open decisions
