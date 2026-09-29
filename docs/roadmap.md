@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 9 built and tuned; Phase 1 ends after a week of daily use).
+Last updated: 2026-09-29 (step 9 built and tuned; speeding up page loads during the trial week).
 
 ## Phase 1: replace the old app
 
@@ -25,6 +25,16 @@ once the rest existed; their screens stay in Phase 2.
 
 The owner's history is already in the production database, so every screen from
 step 5 on works against real data from day one.
+
+## Speed, during the trial week
+
+The owner found every page slow to appear. Fixes, in order:
+
+1. **Everything in Mumbai (TD-19):** the database moved from Seoul to a new Supabase project in
+   Mumbai, and Vercel's functions from Washington DC to Mumbai. Done.
+2. Keep recently visited screens for 30 seconds (`staleTimes.dynamic`), so switching back to one is instant.
+3. Stream Home in parts, so available to spend shows before the insights.
+4. Fewer rounds of queries per screen, where it still shows.
 
 ## Step 9 in detail
 

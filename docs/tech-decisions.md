@@ -18,7 +18,7 @@ Add a new entry when a decision is made, with the date and the reason.
 
 ### TD-2 Database and auth: Supabase
 - **Date:** 2026-09-28
-- **Decision:** Supabase (Postgres and Auth), accessed through `@supabase/ssr` with the **publishable key**. The project ref is `oyhkvltibmmuczwalkgm`.
+- **Decision:** Supabase (Postgres and Auth), accessed through `@supabase/ssr` with the **publishable key**. The project is `paisa` in Mumbai, ref `ofpqojapszjpgeshvjfu` (TD-19).
   - `src/lib/supabase/client.ts` creates the browser client.
   - `src/lib/supabase/server.ts` creates the server client. Create a new one per request.
   - `src/proxy.ts` refreshes the auth session on every request.
@@ -194,6 +194,14 @@ Add a new entry when a decision is made, with the date and the reason.
   - The budget month's start day is set in More → Settings (FR-12, brought forward from Phase 2), since "this month" decides what's subtracted.
   - The Accounts summary hides a figure that is ₹0, such as Loans with nothing owed.
 - **Why:** The owner used to "block" money in the old app by moving it to a Blocked account, but the money never left the bank. Planned payments say the same thing directly, without a make-believe account, and one idea replaces two.
+
+### TD-19 Everything in Mumbai
+- **Date:** 2026-09-29
+- **Decision:**
+  - The database is the Supabase project `paisa` in `ap-south-1` (Mumbai), and `vercel.json` runs Vercel's functions in `bom1` (Mumbai).
+  - It replaced the first project, now named `paisa-seoul` (`ap-northeast-2`). The old project is kept for a week as a fallback, then deleted.
+  - **The move:** the new project's schema and migration history came from a one-time `supabase db push` into the empty database. It's the only exception to TD-3's rule, and it does what the GitHub integration would. The data, the owner's sign-in included (same user ID and password), was copied with `pg_dump --data-only` and restored with triggers paused, so no default data was created twice. Before the app switched, a read-only check matched both sides by row count and a checksum of every row, for every table and for the balances, along with the migrations, RLS policies, grants and functions. The app changed only its URL and publishable key.
+- **Why:** Pages were slow to load. Vercel ran the functions in Washington DC (its default) and the database was in Seoul, so each of a page's rounds of queries took about 190 ms before the page reached the owner in Mumbai. With the owner, the functions and the database in one city, each round takes a few milliseconds.
 
 ## Open decisions
 
