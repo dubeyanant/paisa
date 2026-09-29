@@ -20,6 +20,7 @@ export default async function AccountsPage() {
   const tiles = [
     { label: "Available", hint: "Bank and cash", value: summary.available, show: true },
     { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, show: has("credit_card") },
+    { label: "Card credit", hint: "In your favour", value: summary.cardCredit, show: summary.cardCredit > 0 },
     { label: "Savings", hint: "Savings and investments", value: summary.savings, show: true },
     { label: "Deposits", hint: "Comes back later", value: summary.deposits, show: has("deposit") },
     { label: "Loans", hint: "Still owed", value: summary.loansOwed, show: has("loan") },
@@ -43,7 +44,7 @@ export default async function AccountsPage() {
           <Amount value={summary.netPosition} />
         </p>
         <p className="mt-1 text-sm text-muted">Everything you have, minus everything you owe.</p>
-        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-5">
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-6">
           {tiles.map((tile) => (
             <div key={tile.label} className="min-w-0">
               <dt className="text-sm text-muted">{tile.label}</dt>

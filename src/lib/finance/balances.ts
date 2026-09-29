@@ -51,8 +51,12 @@ export function cardOutstanding(balance: number): number {
 export type BalanceSummary = {
   // Bank + wallet (FR-1).
   available: number;
-  // Total owed across credit cards.
+  // Total owed across credit cards. A card in credit doesn't reduce what's
+  // owed on the others.
   cardDues: number;
+  // Total held in your favour on cards and loans that are in credit, for
+  // example after a refund bigger than the bill.
+  cardCredit: number;
   // Total in savings and investment accounts.
   savings: number;
   // Total in deposits: money held elsewhere that comes back.
@@ -64,7 +68,7 @@ export type BalanceSummary = {
 };
 
 export function balanceSummary(accounts: Account[], balances: Map<string, number>): BalanceSummary {
-  const summary = { available: 0, cardDues: 0, savings: 0, deposits: 0, loansOwed: 0 };
+  const summary = { available: 0, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
   for (const account of accounts) {
     const balance = balances.get(account.id) ?? 0;
     switch (account.type) {
@@ -73,11 +77,13 @@ export function balanceSummary(accounts: Account[], balances: Map<string, number
         summary.available += balance;
         break;
       case "credit_card":
-        summary.cardDues += cardOutstanding(balance);
+      case "loan": {
+        const owed = cardOutstanding(balance);
+        if (owed < 0) summary.cardCredit -= owed;
+        else if (account.type === "loan") summary.loansOwed += owed;
+        else summary.cardDues += owed;
         break;
-      case "loan":
-        summary.loansOwed += cardOutstanding(balance);
-        break;
+      }
       case "savings":
         summary.savings += balance;
         break;
@@ -86,6 +92,9 @@ export function balanceSummary(accounts: Account[], balances: Map<string, number
         break;
     }
   }
-  const { available, cardDues, savings, deposits, loansOwed } = summary;
-  return { ...summary, netPosition: available + savings + deposits - cardDues - loansOwed };
+  const { available, cardDues, cardCredit, savings, deposits, loansOwed } = summary;
+  return {
+    ...summary,
+    netPosition: available + savings + deposits + cardCredit - cardDues - loansOwed,
+  };
 }
