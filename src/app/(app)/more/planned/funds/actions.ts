@@ -82,6 +82,7 @@ export async function updateFund(id: string, input: FundInput): Promise<FundResu
     new_cap: row.cap,
     new_schedule_from: row.schedule_from,
     new_ends_on: row.ends_on,
+    new_closes_when_spent: row.closes_when_spent,
     kept,
   });
   if (error?.code === "P0002") return { ok: false, error: MISSING };

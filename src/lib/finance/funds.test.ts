@@ -25,6 +25,8 @@ const phone: Fund = {
   cap: null,
   schedule_from: "2026-10-01",
   ends_on: "2027-01-15",
+  // Spent a bit at a time; the tests that close at the purchase turn it on.
+  closes_when_spent: false,
   closed_at: null,
 };
 
@@ -37,6 +39,7 @@ const clothes: Fund = {
   cap: 500000,
   schedule_from: "2026-10-01",
   ends_on: null,
+  closes_when_spent: false,
   closed_at: null,
 };
 
@@ -101,6 +104,27 @@ describe("a goal", () => {
     expect(s.events.find((e) => e.type === "spend")).toMatchObject({ covered: 3000000 });
     expect(monthly(s)).toEqual([1500000, 1500000, 1500000]);
     expect(s.balance).toBe(1500000);
+  });
+
+  test("set to close when spent: bought for less or early, it closes at the purchase and frees what's left", () => {
+    const buyer = { ...phone, closes_when_spent: true };
+    const buy = spend("phone", 4000000, "2026-12-10");
+    const s = fundState(buyer, [], [buy], 1, noon("2027-01-20"));
+    expect(s.events.map((e) => e.type)).toEqual(["monthly", "monthly", "monthly", "spend", "release"]);
+    expect(s.events[4]).toMatchObject({ amount: -500000 });
+    expect(s.closedAt).toBe(buy.occurred_at);
+    expect(s.balance).toBe(0);
+    expect(s.thisMonth).toBe(0); // nothing goes in after the purchase
+
+    // Bought for more than it holds: it covers what it holds, the rest counts as usual.
+    const early = fundState(buyer, [], [spend("phone", 7000000, "2026-11-10")], 1, noon("2026-12-15"));
+    expect(early.events.find((e) => e.type === "spend")).toMatchObject({ covered: 3000000 });
+    expect(early.closedAt).not.toBeNull();
+    expect(monthly(early)).toEqual([1500000, 1500000]);
+
+    // A refund doesn't close it.
+    const back = tx({ kind: "refund", amount: 100000, subcategory_id: "gadgets", occurred_at: at("2026-11-10"), fund_id: "phone" });
+    expect(fundState(buyer, [], [back], 1, noon("2026-11-20")).closedAt).toBeNull();
   });
 
   test("closing it by hand frees what it holds", () => {

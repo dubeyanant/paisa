@@ -15,6 +15,7 @@ const blank: FundInput = {
   cap: "",
   from_month: "2026-10-01",
   to_month: "2027-01-01",
+  closes_when_spent: true,
   put_in: "",
 };
 const phone: Fund = {
@@ -26,6 +27,7 @@ const phone: Fund = {
   cap: null,
   schedule_from: "2026-10-01",
   ends_on: "2027-01-01",
+  closes_when_spent: true,
   closed_at: null,
 };
 
@@ -43,6 +45,7 @@ describe("a new fund", () => {
         cap: null,
         schedule_from: "2026-10-01",
         ends_on: "2027-01-01",
+        closes_when_spent: true,
       },
     });
     expect(parseNewFund({ ...blank, target: "" }, october)).toMatchObject({ ok: false });

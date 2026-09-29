@@ -74,7 +74,8 @@ only what a fund holds is kept out of available to spend.
    paid for. Pushed once step 1 is in `main`.
 3. **Owner's review:** the two kinds are a target fund (a guitar: a set amount over some
    months) and a recurring fund (clothes: a monthly amount up to a limit, filling back up
-   after spends). Funds stay open after spends until closed by hand.
+   after spends). A target fund closes at its purchase and frees what's left, unless its
+   "Close it when I buy it" box is unticked; otherwise funds stay open until closed by hand.
 
 ## Step 9 in detail
 

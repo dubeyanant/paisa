@@ -19,11 +19,16 @@ export type FundInput = {
   // A goal's first and last budget months, as each month's first day.
   from_month: string;
   to_month: string;
+  // A target fund closes at its first expense, freeing what's left.
+  closes_when_spent: boolean;
   // Rupees to put in straight away. Only when the fund is new.
   put_in: string;
 };
 
-export type FundFields = Pick<Fund, "kind" | "bucket_id" | "target" | "monthly_amount" | "cap" | "schedule_from" | "ends_on"> & {
+export type FundFields = Pick<
+  Fund,
+  "kind" | "bucket_id" | "target" | "monthly_amount" | "cap" | "schedule_from" | "ends_on" | "closes_when_spent"
+> & {
   name: string;
 };
 
@@ -103,7 +108,17 @@ function parseFields(
     if (input.to_month < scheduleFrom) return fail("The last month is before the first.");
     return {
       ok: true,
-      row: { name: name.name, kind, bucket_id, target, monthly_amount: null, cap: null, schedule_from: scheduleFrom, ends_on: input.to_month },
+      row: {
+        name: name.name,
+        kind,
+        bucket_id,
+        target,
+        monthly_amount: null,
+        cap: null,
+        schedule_from: scheduleFrom,
+        ends_on: input.to_month,
+        closes_when_spent: Boolean(input.closes_when_spent),
+      },
     };
   }
 
@@ -113,7 +128,17 @@ function parseFields(
   if (cap === undefined) return fail("Enter the most the fund should hold, or leave it empty.");
   return {
     ok: true,
-    row: { name: name.name, kind, bucket_id, target: null, monthly_amount: monthly, cap, schedule_from: scheduleFrom, ends_on: null },
+    row: {
+      name: name.name,
+      kind,
+      bucket_id,
+      target: null,
+      monthly_amount: monthly,
+      cap,
+      schedule_from: scheduleFrom,
+      ends_on: null,
+      closes_when_spent: false,
+    },
   };
 }
 
@@ -176,7 +201,7 @@ export function monthChoices(from: Period, count = MAX_GOAL_MONTHS): { value: st
 // left", "Saved up · ₹18,000 spent", "₹2,000 a month, up to ₹5,000".
 export function fundDetail(state: FundState, startDay: number): string {
   const { fund } = state;
-  if (state.closedAt) return "Closed";
+  if (state.closedAt) return boughtWith(state) ? "Bought" : "Closed";
   if (fund.kind === "goal") {
     const spent = state.spent > 0 ? ` · ${formatINR(state.spent)} spent` : "";
     if (state.monthsLeft === 0) {
@@ -189,6 +214,11 @@ export function fundDetail(state: FundState, startDay: number): string {
   if (!fund.monthly_amount) return fund.cap ? `Up to ${formatINR(fund.cap)}` : "Added by hand";
   const monthly = `${formatINR(fund.monthly_amount)} a month`;
   return fund.cap ? `${monthly}, up to ${formatINR(fund.cap)}` : monthly;
+}
+
+// Whether a target fund closed at its purchase rather than by hand.
+export function boughtWith(state: FundState): boolean {
+  return state.events.some((e) => e.type === "spend" && e.at === state.closedAt && e.transaction.kind === "expense");
 }
 
 // For a target fund nothing has been spent from, "₹30,000 of ₹60,000";

@@ -14,7 +14,7 @@ export type FundRow = Fund & { name: string; created_at: string };
 export type FundRowState = FundState & { fund: FundRow };
 
 const FUND_COLUMNS =
-  "id, name, kind, bucket_id, target, monthly_amount, cap, schedule_from, ends_on, closed_at, created_at";
+  "id, name, kind, bucket_id, target, monthly_amount, cap, schedule_from, ends_on, closes_when_spent, closed_at, created_at";
 
 const amountOrNull = (value: unknown) => (value === null || value === undefined ? null : Number(value));
 

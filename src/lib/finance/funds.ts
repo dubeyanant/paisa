@@ -6,12 +6,14 @@ import type { Transaction } from "./types";
 // A fund's balance is what went in (each budget month's amount, and money
 // added or taken out by hand) minus what it paid for. The balance is held back
 // from available to spend, and money counts in the fund's budget bucket when
-// it goes in, not when it's spent. A fund stays open until it's closed by hand.
+// it goes in, not when it's spent. A fund stays open until it's closed by
+// hand, or, for a target fund set to, until its first expense.
 
 export type Fund = {
   id: string;
   // A target fund ("goal") puts in `target` over the months up to the one
-  // with ends_on; spending from it doesn't make it save more. A recurring fund
+  // with ends_on; spending from it doesn't make it save more, and with
+  // closes_when_spent its first expense closes it. A recurring fund
   // ("ongoing") puts in monthly_amount every month while it holds less than
   // `cap`, so it fills back up after spends.
   kind: "goal" | "ongoing";
@@ -22,6 +24,7 @@ export type Fund = {
   // A date in the first budget month of the current schedule.
   schedule_from: string;
   ends_on: string | null;
+  closes_when_spent: boolean;
   closed_at: string | null;
 };
 
@@ -46,7 +49,7 @@ export type FundState = {
   // Put in so far (by month and by hand), and paid for from it.
   saved: number;
   spent: number;
-  // When it was closed by hand. Null while open.
+  // When it closed: by hand, or at a target fund's first expense. Null while open.
   closedAt: string | null;
   // This budget month's scheduled amount, 0 if there's none.
   thisMonth: number;
@@ -126,6 +129,8 @@ export function fundState(
       balance -= covered;
       spent += covered;
       events.push({ type: "spend", at: item.at, transaction: t, covered });
+      // Bought: what's left is free to spend again.
+      if (!closedAt && fund.kind === "goal" && fund.closes_when_spent && t.kind === "expense") close(item.at);
       continue;
     }
     if (closedAt) continue;

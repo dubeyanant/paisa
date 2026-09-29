@@ -43,6 +43,7 @@ function startingValues({ fund, buckets, months, kind }: FundFormProps): FundInp
       cap: optional(fund.cap),
       from_month: fund.schedule_from,
       to_month: fund.ends_on ?? "",
+      closes_when_spent: fund.closes_when_spent,
       put_in: "",
     };
   }
@@ -56,6 +57,7 @@ function startingValues({ fund, buckets, months, kind }: FundFormProps): FundInp
     from_month: months[0]?.value ?? "",
     // Four months, a common stretch to save up over.
     to_month: months[3]?.value ?? "",
+    closes_when_spent: true,
     put_in: "",
   };
 }
@@ -212,6 +214,20 @@ export function FundForm(props: FundFormProps) {
               {preview.first + (preview.then ?? 0) > 0 && " It's kept out of available to spend, and the money stays in your bank."}
             </p>
           )}
+          <label className="flex min-h-11 cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={values.closes_when_spent}
+              onChange={(e) => set({ closes_when_spent: e.target.checked })}
+              className="mt-0.5 size-5 shrink-0 accent-(--accent)"
+            />
+            <span>
+              <span className="font-medium">Close it when I buy it</span>
+              <span className="block text-sm text-muted">
+                What&rsquo;s left becomes free to spend again. Turn off to spend from it bit by bit, like on a trip.
+              </span>
+            </span>
+          </label>
         </>
       ) : (
         <>

@@ -237,8 +237,9 @@ Add a new entry when a decision is made, with the date and the reason.
     - Paying from a fund leaves available to spend unchanged: the bank goes down by the amount the fund releases.
     - A planned entry can't use a fund until it's confirmed.
   - **Closing:**
-    - Every fund stays open after spends, even at ₹0, until it's closed by hand (owner, 2026-09-30). Closing frees what it holds and stops the schedule.
-    - Spending from a target fund before it's full counts the part it doesn't hold as usual spending, and the months left keep saving toward the target.
+    - A target fund has **Close it when I buy it**, on by default (`closes_when_spent`, owner, 2026-09-30). Its first expense then closes it, whether it's full, bought early or bought for less, and what's left is free to spend again. The part it doesn't hold counts as usual spending.
+    - With it off (a trip, spent bit by bit), and for every recurring fund, the fund stays open after spends, even at ₹0, until it's closed by hand. A target fund then keeps saving toward its target in the months left.
+    - Closing by hand frees what a fund holds and stops the schedule.
     - A fund with spends can't be deleted, only closed, so history stays.
   - **Budget (FR-7):**
     - Money counts in the fund's bucket when it goes in, as a payment known in advance, not spending at a pace.

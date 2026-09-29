@@ -10,7 +10,7 @@ import { getMoneySummary } from "@/lib/data/summary";
 import { budgetMonthOf, istDate, istStartOf } from "@/lib/finance/dates";
 import { savedBefore, type FundEvent } from "@/lib/finance/funds";
 import { formatINR } from "@/lib/finance/money";
-import { fundDetail, monthChoices, monthName } from "@/lib/funds";
+import { boughtWith, fundDetail, monthChoices, monthName } from "@/lib/funds";
 import { dayInSentence } from "@/lib/recurring";
 import { CloseOrDelete, MoveMoney } from "../fund-actions";
 import { FundForm } from "../fund-form";
@@ -36,7 +36,9 @@ export default async function FundPage({ params }: PageProps<"/more/planned/fund
   const progress = goal && fund.target ? Math.min(state.saved / fund.target, 1) : 0;
   // For the form's preview: put in before this month's share, and since.
   const before = started ? savedBefore(state, istStartOf(month.start)) : state.saved;
-  const status = state.closedAt ? `Closed ${dayInSentence(istDate(state.closedAt), today)}` : fundDetail(state, startDay);
+  const status = state.closedAt
+    ? `${boughtWith(state) ? "Bought" : "Closed"} ${dayInSentence(istDate(state.closedAt), today)}`
+    : fundDetail(state, startDay);
 
   return (
     <>
@@ -68,7 +70,13 @@ export default async function FundPage({ params }: PageProps<"/more/planned/fund
             )}
             {open && (
               <p className="mt-3 text-sm text-muted">
-                {goal && state.spent > 0 ? (
+                {goal && fund.closes_when_spent ? (
+                  <>
+                    The money stays in your bank, but isn&rsquo;t counted as free to spend. When you buy it, choose{" "}
+                    <span className="font-medium text-foreground">From fund</span> on the expense: the fund closes,
+                    and what&rsquo;s left becomes free to spend.
+                  </>
+                ) : goal && state.spent > 0 ? (
                   "Bought what you saved for? Close the fund to stop saving, and what's left becomes free to spend."
                 ) : (
                   <>
