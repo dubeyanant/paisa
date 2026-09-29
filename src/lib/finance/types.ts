@@ -54,6 +54,9 @@ export type Commitment = {
   first_due_on: string;
   ends_on: string | null;
   paused_at: string | null;
+  // Due dates the owner skipped (recurring_skips). They drop out of the
+  // schedule, so they're neither pending nor reserved.
+  skipped_on: string[];
 };
 
 export type Tag = {

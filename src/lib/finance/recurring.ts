@@ -7,6 +7,7 @@ import type { Commitment, Transaction } from "./types";
 // commitment (recurring_id) covers it. Linked payments cover due dates in
 // order, the first payment the first due date and so on, so paying early or
 // late still counts, and editing the amount (a variable bill) doesn't matter.
+// A skipped due date isn't due at all, so no payment covers it.
 
 // `date` moved by `months` whole months. A day that doesn't exist in the target
 // month (the 31st in June, 29 February) falls on its last day.
@@ -26,14 +27,16 @@ export function nthDueDate(c: Pick<Commitment, "unit" | "every" | "first_due_on"
   return addMonths(c.first_due_on, c.unit === "year" ? 12 * step : step);
 }
 
-// Every due date before `until` (exclusive). A paused commitment has none.
+// Every due date before `until` (exclusive), leaving out skipped ones. A paused
+// commitment has none.
 export function dueDates(c: Commitment, until: string): string[] {
   if (c.paused_at) return [];
+  const skipped = new Set(c.skipped_on);
   const dates: string[] = [];
   for (let n = 0; ; n++) {
     const date = nthDueDate(c, n);
     if (date >= until || (c.ends_on && date > c.ends_on)) return dates;
-    dates.push(date);
+    if (!skipped.has(date)) dates.push(date);
   }
 }
 

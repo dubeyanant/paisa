@@ -37,6 +37,7 @@ export function commitment(fields: Partial<Commitment> & Pick<Commitment, "id" |
     first_due_on: "2026-01-01",
     ends_on: null,
     paused_at: null,
+    skipped_on: [],
     ...fields,
   };
 }

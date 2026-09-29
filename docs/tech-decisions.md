@@ -146,9 +146,10 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Payments cover due dates in order:** the first linked payment (`recurring_id`) covers the first due date, and so on. Paying early or late still counts. A due date on or before today with no payment is a pending entry. A planned entry linked to a commitment covers its due date.
   - **Reserved money** is every unpaid due date and planned outgoing entry up to the end of the budget month, overdue ones included.
   - **Detection** (`detection.ts`) groups unlinked expenses by subcategory and note (transfers by their two accounts and note), and needs a regular gap (weekly, monthly, every 3 or 6 months, yearly), amounts within half of each other, and a recent payment. It offers a series after 3 payments; INS-09 lists one after 2.
+  - **Skipping a due date** (a month the gym was closed, a bill that didn't come) stores it in `recurring_skips`. It drops out of the schedule, so it's neither pending nor reserved, and payments cover the remaining due dates in order. Deleting the row undoes the skip.
   - **"Min data"** in BRD §9 counts budget months including the current one. Until there's enough, an insight returns `{ ready: false, monthsToGo }`.
   - **INS-19** ranks the flags from INS-04, 05, 09, 10 and 17 by rupee impact.
-  - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date gets a "Skip" option with the recurring screens (step 8); it needs a small migration.
+  - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8).
 - **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
 
 ### TD-17 Charts: Recharts
