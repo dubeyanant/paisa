@@ -16,8 +16,8 @@ Last updated: 2026-09-29.
 | 5 | **App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3)** | **Next** | |
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | To do | |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
-| 8 | Recurring commitments and budget rules (FR-6, FR-7) | Logic done, screens to do | `src/lib/finance/`, TD-14 |
-| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-14 |
+| 8 | Recurring commitments and budget rules (FR-6, FR-7) | Logic done, screens to do | `src/lib/finance/`, TD-16 |
+| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16 |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
 It also covers the Phase 2 insights INS-07, 08, 11, 12, 15 and 18, which cost little

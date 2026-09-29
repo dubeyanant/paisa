@@ -119,7 +119,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Tests:** `supabase/tests/migrations.test.ts` runs every migration on an in-memory Postgres (PGlite) with a stand-in for Supabase's auth, then checks defaults, RLS and constraints. It runs in CI, because preview databases are off and a migration would otherwise run for the first time in production.
 - **Why:** These rules keep every figure exact and consistent (NFR-5), keep the data private (NFR-6), and make the flexibility in FR-4 and FR-7 possible without losing history.
 
-### TD-14 Recurring commitments and insights: pure functions
+### TD-16 Recurring commitments and insights: pure functions
 - **Date:** 2026-09-29
 - **Decision:** Recurring commitments and the native insights are pure functions in `src/lib/finance/`, tested with `bun test`. Screens load rows and pass them in.
   - **Due dates** come from each commitment's schedule (`recurring.ts`). A monthly due day missing from a month (the 31st) falls on its last day.
