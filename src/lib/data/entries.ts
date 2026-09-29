@@ -3,8 +3,11 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { isUuid } from "@/lib/data/accounts";
+import { getFunds } from "@/lib/data/funds";
+import { getBudgetMonthStartDay } from "@/lib/data/recurring";
 import type { RecentEntry } from "@/lib/entry";
 import { searchArgs, type EntryFilters } from "@/lib/entry-filters";
+import { fundStates } from "@/lib/finance/funds";
 import type { AccountType } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,9 +29,14 @@ export type Entry = RecentEntry & {
   // Only when opened on its own, to edit or copy.
   tag_ids?: string[];
   bucket_override_id?: string | null;
+  fund_id?: string | null;
 };
 
 export type TagOption = { id: string; name: string; starts_on: string | null; ends_on: string | null };
+
+// A fund an expense can be paid from (TD-21), with what it holds now. Closed
+// ones are only for showing old entries.
+export type FundOption = { id: string; name: string; balance: number; closed: boolean };
 
 export type EntryContext = {
   // In the Accounts screen's order. Archived ones are only for showing old entries.
@@ -39,6 +47,8 @@ export type EntryContext = {
   recent: RecentEntry[];
   // Newest first.
   tags: TagOption[];
+  // Open ones first.
+  funds: FundOption[];
 };
 
 const ENTRY_COLUMNS =
@@ -50,7 +60,7 @@ const SUGGESTION_WINDOW = 1000;
 export async function getEntryContext(): Promise<EntryContext> {
   await requireUser();
   const supabase = await createClient();
-  const [labels, recent, tags] = await Promise.all([
+  const [labels, recent, tags, { funds, moves, spends }, startDay] = await Promise.all([
     getLabels(),
     supabase
       .from("transactions")
@@ -60,18 +70,24 @@ export async function getEntryContext(): Promise<EntryContext> {
       .order("occurred_at", { ascending: false })
       .limit(SUGGESTION_WINDOW),
     supabase.from("tags").select("id, name, starts_on, ends_on").order("created_at", { ascending: false }),
+    getFunds(),
+    getBudgetMonthStartDay(),
   ]);
   if (recent.error) throw recent.error;
   if (tags.error) throw tags.error;
+  const states = fundStates(funds, moves, spends, startDay, new Date());
   return {
     ...labels,
     recent: recent.data.map((t) => ({ ...(t as RecentEntry), amount: Number(t.amount) })),
     tags: tags.data,
+    funds: states
+      .map((s, i) => ({ id: s.fund.id, name: funds[i].name, balance: s.balance, closed: Boolean(s.closedAt) }))
+      .sort((a, b) => Number(a.closed) - Number(b.closed)),
   };
 }
 
 // Every account and subcategory, to name entries and offer choices.
-export const getLabels = cache(async (): Promise<Omit<EntryContext, "recent" | "tags">> => {
+export const getLabels = cache(async (): Promise<Omit<EntryContext, "recent" | "tags" | "funds">> => {
   await requireUser();
   const supabase = await createClient();
   const [accounts, categories, subcategories] = await Promise.all([
@@ -137,7 +153,7 @@ export async function getEntry(id: string): Promise<Entry> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
-    .select(`${ENTRY_COLUMNS}, bucket_override_id, transaction_tags(tag_id)`)
+    .select(`${ENTRY_COLUMNS}, bucket_override_id, fund_id, transaction_tags(tag_id)`)
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;

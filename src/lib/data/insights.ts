@@ -7,6 +7,7 @@ import { DETECTION_DAYS, getDetectionHistory } from "@/lib/data/recurring";
 import { getMoneySummary } from "@/lib/data/summary";
 import { addDays, istDate, shiftBudgetMonth } from "@/lib/finance/dates";
 import { recurringPayments } from "@/lib/finance/detection";
+import { withoutCovered } from "@/lib/finance/funds";
 import {
   categoryTrends,
   emergencyFundCoverage,
@@ -36,7 +37,7 @@ export const getSmallSpendThreshold = cache(async (): Promise<number> => {
 export async function getInsights(now = new Date()) {
   // Detection's 400 days reach back further than the 7 budget months, so one
   // load serves both, in the same round as everything else.
-  const [{ accounts, commitments, scheduled, month, today }, labels, recent, detection, firstEntry, threshold] =
+  const [{ accounts, commitments, scheduled, month, today, fundBudget }, labels, recent, detection, firstEntry, threshold] =
     await Promise.all([
       getMoneySummary(now),
       getLabels(),
@@ -67,8 +68,16 @@ export async function getInsights(now = new Date()) {
     // look like money saved.
     savings: savingsTrend(transactions, accountsById, shiftBudgetMonth(month, -1), HISTORY_MONTHS),
     emergency: emergencyFundCoverage(transactions, accounts, month, firstDate, balances),
-    // Planned payments (rent, bills) are known in advance, so pace leaves them out.
-    pace: monthToDatePace(everyday(transactions, commitments, today), accountsById, categoryOf, month, today, firstDate),
+    // Planned payments (rent, bills) are known in advance, so pace leaves them
+    // out, and what funds paid for was counted as it was saved (TD-21).
+    pace: monthToDatePace(
+      everyday(withoutCovered(transactions, fundBudget), commitments, today),
+      accountsById,
+      categoryOf,
+      month,
+      today,
+      firstDate,
+    ),
     trends: categoryTrends(transactions, categoryOf, month, firstDate),
     // The last 30 days, so it's a full month's worth on any day.
     smallSpends: smallSpendLeak(transactions, { start: addDays(today, -29), end: addDays(today, 1) }, threshold),

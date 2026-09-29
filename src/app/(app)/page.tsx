@@ -14,6 +14,7 @@ import { recurringOverview } from "@/lib/recurring";
 import { EntryList } from "./entry-list";
 import { ComingUp } from "./more/planned/coming-up";
 import { DueNow } from "./more/planned/due-now";
+import { FundList } from "./more/planned/funds/fund-list";
 import { dueRows, lookups } from "./more/planned/rows";
 
 type Summary = Awaited<ReturnType<typeof getMoneySummary>>;
@@ -22,8 +23,9 @@ type Insights = Awaited<ReturnType<typeof getHomeInsights>>;
 type Latest = Awaited<ReturnType<typeof getLatestEntries>>;
 
 // Home (FR-8): what's free to spend, this month at a glance (budget buckets,
-// everyday spending pace, last month's savings rate), planned payments due now
-// and coming up, and the latest entries. Alerts (INS-19) aren't shown for now:
+// everyday spending pace, last month's savings rate), planned payments due
+// now and coming up, funds being saved up (TD-21), and the latest entries.
+// Alerts (INS-19) aren't shown for now:
 // the owner wants only the budget and a few key figures here.
 //
 // Every load starts here at once, and each part shows as soon as its own
@@ -55,6 +57,9 @@ export default function Home() {
           <Suspense fallback={null}>
             <Planned summary={summary} labels={labels} now={now} />
           </Suspense>
+          <Suspense fallback={null}>
+            <Funds summary={summary} />
+          </Suspense>
           <Suspense fallback={<Placeholder className="h-96" />}>
             <LatestEntries latest={latest} labels={labels} />
           </Suspense>
@@ -81,7 +86,9 @@ async function Spendable({ summary: loading }: { summary: Promise<Summary> }) {
         <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
           <Amount value={summary.spendable} className="text-spendable" />
         </p>
-        <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
+        <p className="mt-1 text-sm text-muted">
+          Bank and cash, minus what&rsquo;s planned this month{summary.funds > 0 && ", funds"} and card dues.
+        </p>
         <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
           <div className="min-w-0">
             <dt className="text-sm text-muted">Planned this month</dt>
@@ -95,6 +102,14 @@ async function Spendable({ summary: loading }: { summary: Promise<Summary> }) {
               {formatINR(summary.cardDues)}
             </dd>
           </div>
+          {summary.funds !== 0 && (
+            <div className="min-w-0">
+              <dt className="text-sm text-muted">In funds</dt>
+              <dd className="truncate font-medium tabular-nums">
+                <Amount value={summary.funds} className="text-planned" />
+              </dd>
+            </div>
+          )}
           {summary.setAside !== 0 && (
             <div className="min-w-0">
               <dt className="text-sm text-muted">Set aside</dt>
@@ -184,6 +199,29 @@ async function Planned({ summary, labels, now }: { summary: Promise<Summary>; la
         </section>
       )}
     </>
+  );
+}
+
+// Open funds, with what they hold between them.
+async function Funds({ summary: loading }: { summary: Promise<Summary> }) {
+  const { funds, summary, startDay } = await loading;
+  const open = funds.filter((s) => !s.closedAt);
+  if (open.length === 0) return null;
+  return (
+    <section>
+      <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">Funds</h2>
+          <p className="text-sm text-muted tabular-nums">
+            <span className="text-planned">{formatINR(summary.funds)}</span> saved up
+          </p>
+        </div>
+        <Link href="/more/planned#funds" className="flex h-11 items-center text-sm font-medium text-accent">
+          See all
+        </Link>
+      </div>
+      <FundList funds={open} startDay={startDay} />
+    </section>
   );
 }
 

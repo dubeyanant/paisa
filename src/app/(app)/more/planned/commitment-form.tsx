@@ -30,6 +30,8 @@ type Props = {
   commitment?: CommitmentRow;
   // ...or starting a new one, perhaps from a suggestion.
   initial?: Partial<CommitmentInput>;
+  // Whether a new one repeats, when the screen chooses it rather than the form.
+  repeats?: boolean;
 };
 
 function startingValues(commitment: CommitmentRow | undefined, initial: Partial<CommitmentInput> = {}): CommitmentInput {
@@ -64,11 +66,12 @@ function startingValues(commitment: CommitmentRow | undefined, initial: Partial<
   };
 }
 
-export function CommitmentForm({ accounts, subcategories, commitment, initial }: Props) {
+export function CommitmentForm({ accounts, subcategories, commitment, initial, repeats: chosen }: Props) {
   const router = useRouter();
   const [values, setValues] = useState(() => startingValues(commitment, initial));
   // A new payment can happen once; an existing commitment repeats.
-  const [repeats, setRepeats] = useState(Boolean(commitment) || Boolean(initial?.unit));
+  const [repeatsHere, setRepeats] = useState(Boolean(commitment) || Boolean(initial?.unit));
+  const repeats = chosen ?? repeatsHere;
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -124,7 +127,7 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
 
   return (
     <form onSubmit={submit} className="flex max-w-xl flex-col gap-5">
-      {!commitment && (
+      {!commitment && chosen === undefined && (
         <div role="radiogroup" aria-label="How often" className="grid grid-cols-2 gap-1 rounded-xl bg-foreground/[0.06] p-1">
           {([false, true] as const).map((r) => (
             <button

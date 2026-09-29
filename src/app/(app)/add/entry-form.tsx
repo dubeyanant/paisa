@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { PlusIcon } from "@/components/icons";
 import { buttonClass, inputClass } from "@/components/ui";
 import { tagSuggested } from "@/lib/categories";
-import type { AccountOption, Entry, SubcategoryOption, TagOption } from "@/lib/data/entries";
+import type { AccountOption, Entry, FundOption, SubcategoryOption, TagOption } from "@/lib/data/entries";
 import {
   ENTRY_KINDS,
   MAX_LINES,
@@ -27,6 +27,8 @@ export type EntryFormProps = {
   subcategories: SubcategoryOption[];
   // Newest first.
   tags: TagOption[];
+  // Open ones first (TD-21).
+  funds: FundOption[];
   picks: QuickPick[];
   frequent: { expense: string[]; income: string[] };
   // [category kind + "|" + normalised note, subcategory id]
@@ -89,6 +91,7 @@ export function EntryForm(props: EntryFormProps) {
   const [showAllAccounts, setShowAllAccounts] = useState(false);
   const [tagIds, setTagIds] = useState<string[]>(source?.tag_ids ?? []);
   const [bucketOverride, setBucketOverride] = useState(editing?.bucket_override_id ?? "");
+  const [fundId, setFundId] = useState(editing?.fund_id ?? "");
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState<Saved>();
   const [pending, startTransition] = useTransition();
@@ -171,6 +174,7 @@ export function EntryForm(props: EntryFormProps) {
       lines: lines.map(({ id, amount, subcategory_id, note }) => ({ id, amount, subcategory_id, note })),
       tag_ids: tagIds,
       bucket_override_id: editing ? bucketOverride || null : null,
+      fund_id: canUseFund ? fundId || null : null,
     };
   }
 
@@ -206,6 +210,7 @@ export function EntryForm(props: EntryFormProps) {
       setShowDescription(false);
       setShowAllCategories(false);
       setTagIds([]);
+      setFundId("");
       amountRef.current?.focus();
       router.refresh();
     });
@@ -241,6 +246,10 @@ export function EntryForm(props: EntryFormProps) {
   }
 
   const futureWhen = when !== null && when > toIstDateTimeInput(new Date());
+  // Open funds, and the one an edited entry already uses. A planned entry
+  // can't use one until it has happened (TD-21).
+  const fundChoices = props.funds.filter((f) => !f.closed || f.id === editing?.fund_id);
+  const canUseFund = (kind === "expense" || kind === "refund") && !futureWhen && fundChoices.length > 0;
 
   const accountFields = (
     <>
@@ -406,6 +415,17 @@ export function EntryForm(props: EntryFormProps) {
 
       {/* Shared by every line, so it comes after them. */}
       {kind !== "transfer" && accountFields}
+
+      {canUseFund && (
+        <FundChoice
+          funds={fundChoices}
+          selected={fundId}
+          onChange={setFundId}
+          refund={kind === "refund"}
+          // An edited expense is already counted in the fund's balance.
+          total={editing?.fund_id === fundId ? 0 : total}
+        />
+      )}
 
       <Field label="When">
         {when === null ? (
@@ -777,6 +797,43 @@ function TagPicker({
         </p>
       )}
     </section>
+  );
+}
+
+// The fund an expense is paid from, or a refund goes back to (TD-21). Tapping
+// the chosen one again clears it.
+function FundChoice({
+  funds,
+  selected,
+  onChange,
+  refund,
+  total,
+}: {
+  funds: FundOption[];
+  selected: string;
+  onChange: (id: string) => void;
+  refund: boolean;
+  total: number;
+}) {
+  const fund = funds.find((f) => f.id === selected);
+  const extra = fund && !refund ? total - fund.balance : 0;
+  return (
+    <Field label={refund ? "Back to fund · Optional" : "From fund · Optional"}>
+      <Choices
+        options={funds.map((f) => ({ id: f.id, label: `${f.name} · ${formatINR(f.balance)}` }))}
+        selected={selected || null}
+        onSelect={(id) => onChange(id === selected ? "" : id)}
+      />
+      {fund && (
+        <p className="mt-2 text-sm text-muted">
+          {refund
+            ? `The money goes back into ${fund.name}.`
+            : extra > 0
+              ? `${fund.name} holds ${formatINR(fund.balance)}, so ${formatINR(extra)} counts as this month's spending.`
+              : `Paid from money saved in ${fund.name}, so it doesn't count again in this month's budget.`}
+        </p>
+      )}
+    </Field>
   );
 }
 

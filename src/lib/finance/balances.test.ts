@@ -70,6 +70,7 @@ describe("balance summary", () => {
       available: 5050000,
       setAside: 0,
       planned: 0,
+      funds: 0,
       cardDues: 1234567,
       cardCredit: 0,
       savings: 2500000,
@@ -100,6 +101,19 @@ describe("balance summary", () => {
       cardDues: 500000,
       spendable: 15000000 - 3500000 - 500000 - 1200000,
       netPosition: 15000000 - 500000,
+    });
+  });
+
+  test("money held in funds counts as owned, but not as free to spend (TD-21)", () => {
+    const accounts = [account("bank", "bank"), account("card", "credit_card")];
+    const balances = new Map([
+      ["bank", 5000000],
+      ["card", -300000],
+    ]);
+    expect(balanceSummary(accounts, balances, 1000000, 800000)).toMatchObject({
+      funds: 800000,
+      spendable: 5000000 - 300000 - 1000000 - 800000,
+      netPosition: 5000000 - 300000,
     });
   });
 

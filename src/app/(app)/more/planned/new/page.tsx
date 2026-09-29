@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
 import { isUuid } from "@/lib/data/accounts";
+import { getActiveRule } from "@/lib/data/budget";
 import { getLabels } from "@/lib/data/entries";
+import { getBudgetMonthStartDay } from "@/lib/data/recurring";
+import { budgetMonthOf, istDate } from "@/lib/finance/dates";
 import { toRupeesInput } from "@/lib/finance/money";
 import { isDate } from "@/lib/categories";
+import { monthChoices } from "@/lib/funds";
 import type { CommitmentInput } from "@/lib/recurring";
-import { CommitmentForm } from "../commitment-form";
+import { NewPlanned } from "./new-planned";
 
-export const metadata: Metadata = { title: "Plan a payment · Paisa" };
+export const metadata: Metadata = { title: "Plan · Paisa" };
 
 // A suggestion from the Planned screen arrives as query parameters, which
 // fill in the form. Saving checks everything again.
@@ -37,12 +41,20 @@ function fromSuggestion(params: Record<string, string | string[] | undefined>): 
   return initial;
 }
 
+// ?save=up opens on a new fund.
 export default async function NewCommitmentPage({ searchParams }: PageProps<"/more/planned/new">) {
-  const [labels, params] = await Promise.all([getLabels(), searchParams]);
+  const [labels, params, rule, startDay] = await Promise.all([getLabels(), searchParams, getActiveRule(), getBudgetMonthStartDay()]);
+  const initial = fromSuggestion(params);
+  const month = budgetMonthOf(istDate(new Date()), startDay);
   return (
     <>
-      <PageHeader title="Plan a payment" back={{ href: "/more/planned", label: "Back to planned" }} />
-      <CommitmentForm {...labels} initial={fromSuggestion(params)} />
+      <PageHeader title="Plan" back={{ href: "/more/planned", label: "Back to planned" }} />
+      <NewPlanned
+        start={params.save === "up" ? "fund" : initial.unit ? "repeats" : "once"}
+        {...labels}
+        initial={initial}
+        fund={{ buckets: rule?.buckets ?? [], months: monthChoices(month) }}
+      />
     </>
   );
 }

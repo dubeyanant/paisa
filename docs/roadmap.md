@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-30 (trial week: faster page loads, and fewer, more useful things on Home and Insights).
+Last updated: 2026-09-30 (trial week: faster page loads, fewer things on Home and Insights, and funds).
 
 ## Phase 1: replace the old app
 
@@ -58,6 +58,24 @@ The owner wants each screen to keep only what gets used: the 20% of features tha
   gaps. Each saved month on Insights opens that month's entries. Entry lists on Home and
   Entries show each day's net (income and refunds minus expenses, like the Entries
   totals); a day the list may have cut short shows none.
+
+## Funds, during the trial week (TD-21)
+
+The owner saves for big purchases over a few months, and used to keep Things, Clothes and
+Trip bucket accounts (now archived). Funds replace both: the money stays in the bank, and
+only what a fund holds is kept out of available to spend.
+
+1. **Migration** (`funds`, `fund_moves`, `transactions.fund_id`, `update_fund()`). Pushed to
+   `dev`; it has to merge into `main` before the screens (TD-3).
+2. **Screens:** More → Planned lists funds, and New has Once, Repeats and Save up. A fund's
+   screen adds or takes out money, changes the schedule, closes it and shows its history.
+   Add and edit take "From fund". Home shows open funds in a card after Planned, and "In
+   funds" under available to spend. Budget counts money into funds, and pace leaves out what funds
+   paid for. Pushed once step 1 is in `main`.
+3. **Owner's review:** the two kinds are a target fund (a guitar: a set amount over some
+   months) and a recurring fund (clothes: a monthly amount up to a limit, filling back up
+   after spends). A target fund closes at its purchase and frees what's left, unless its
+   "Close it when I buy it" box is unticked; otherwise funds stay open until closed by hand.
 
 ## Step 9 in detail
 

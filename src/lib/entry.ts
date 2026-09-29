@@ -178,6 +178,8 @@ export type EntryInput = {
   // Puts an expense or refund in another budget bucket than its category's
   // (FR-7). Only the edit screen offers it.
   bucket_override_id?: string | null;
+  // The fund an expense is paid from, or a refund goes back to (TD-21).
+  fund_id?: string | null;
 };
 
 export type TransactionInsert = {
@@ -192,6 +194,7 @@ export type TransactionInsert = {
   occurred_at: string;
   is_planned: boolean;
   bucket_override_id: string | null;
+  fund_id: string | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -236,6 +239,14 @@ export function parseEntry(
     bucket_override_id = input.bucket_override_id;
   }
 
+  let fund_id: string | null = null;
+  if (input.fund_id) {
+    if (input.kind !== "expense" && input.kind !== "refund") return fail("Only an expense or a refund can use a fund.");
+    if (!UUID.test(input.fund_id)) return fail("Something went wrong. Reload and try again.");
+    if (when.getTime() > now.getTime()) return fail("A planned entry can't come from a fund until it has happened.");
+    fund_id = input.fund_id;
+  }
+
   const rows: TransactionInsert[] = [];
   for (const [index, line] of lines.entries()) {
     const which = lines.length > 1 ? ` on line ${index + 1}` : "";
@@ -261,6 +272,7 @@ export function parseEntry(
       occurred_at: when.toISOString(),
       is_planned: when.getTime() > now.getTime(),
       bucket_override_id,
+      fund_id,
     });
   }
   return { ok: true, rows, tagIds };

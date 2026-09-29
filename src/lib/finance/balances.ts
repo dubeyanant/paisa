@@ -55,6 +55,8 @@ export type BalanceSummary = {
   setAside: number;
   // Planned payments still to pay this month, from plannedToPay().
   planned: number;
+  // Held in funds, from heldInFunds() (TD-21). The money is in bank and cash.
+  funds: number;
   // Total owed across credit cards. A card in credit doesn't reduce what's
   // owed on the others.
   cardDues: number;
@@ -69,8 +71,8 @@ export type BalanceSummary = {
   loansOwed: number;
   // Everything owned minus everything owed (INS-18).
   netPosition: number;
-  // Bank and cash minus set-aside money, card dues and planned payments:
-  // what's really free to spend (TD-18).
+  // Bank and cash minus set-aside money, card dues, planned payments and
+  // funds: what's really free to spend (TD-18, TD-21).
   spendable: number;
 };
 
@@ -78,8 +80,9 @@ export function balanceSummary(
   accounts: Account[],
   balances: Map<string, number>,
   planned = 0,
+  funds = 0,
 ): BalanceSummary {
-  const summary = { available: 0, setAside: 0, planned, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
+  const summary = { available: 0, setAside: 0, planned, funds, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
   for (const account of accounts) {
     const balance = balances.get(account.id) ?? 0;
     switch (account.type) {
@@ -108,6 +111,6 @@ export function balanceSummary(
   return {
     ...summary,
     netPosition: available + savings + deposits + cardCredit - cardDues - loansOwed,
-    spendable: available - setAside - cardDues - planned,
+    spendable: available - setAside - cardDues - planned - funds,
   };
 }
