@@ -152,7 +152,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Detection on the Recurring screen** looks at the last 400 days, enough for three payments every 6 months.
   - **"Min data"** in BRD §9 counts budget months including the current one. Until there's enough, an insight returns `{ ready: false, monthsToGo }`.
   - **INS-19** ranks the flags from INS-04, 05, 09, 10 and 17 by rupee impact.
-  - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8).
+  - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8). On screen, commitments and one-off planned entries are both "planned payments" (TD-18).
 - **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
 
 ### TD-17 Charts: Recharts
@@ -164,14 +164,19 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Phone and laptop (owner, 2026-09-29):** what's used day to day works fully on a phone (adding, entries, balances, free money, budget status, alerts), and every insight keeps its headline and figure there. A chart or table too wide or dense for a phone, such as a multi-series trend or a month-by-category table, can be laptop-only. The phone then shows a compact stand-in, such as the top few items, with a note that the full view is on a larger screen.
 - **Why:** Recharts draws SVG, so it takes colours from CSS variables and resizes to fit a phone or a laptop (NFR-1). It covers every chart the insights need (bars, stacked bars, lines, areas, donuts) with little code, and supports React 19. Chart.js draws on a canvas, which can't read CSS variables; ECharts is much larger; visx and D3 need far more code for each chart.
 
-### TD-18 Blocked money and "available to spend"
-- **Date:** 2026-09-29
+### TD-18 Planned money and "available to spend"
+- **Date:** 2026-09-29 (revised the same day: the first version used "blocked" accounts)
 - **Decision:**
-  - A bank or wallet account can be marked **blocked** (`accounts.is_blocked`). It holds money already set aside for bills and planned spending, such as a "Blocked" wallet or sinking funds. It can't be spent on anything else.
-  - **Available to spend** = bank and cash − blocked − card dues. Home leads with it, next to Blocked and Card dues. On Accounts it leads too, and net position becomes one of the smaller figures.
-  - Blocked money still counts as owned in net position.
+  - **Planned payments are one idea.** A payment either repeats (a recurring commitment, TD-16) or happens once (a planned entry, BR-7). More → Planned lists both, and one form creates either. The money stays in the account it's paid from until the owner confirms the payment.
+  - **Available to spend** = bank and cash − set-aside money − card dues − **planned payments still to pay this budget month**, overdue ones included (`plannedToPay()`). Home and Accounts lead with it, and every screen gets it from `getMoneySummary()`.
+  - `plannedToPay()` leaves out what doesn't come out of money available to spend:
+    - payments from a set-aside, savings, deposit or loan account
+    - transfers into a credit card (card dues already count) or into an ordinary bank or wallet account
+    - A planned expense on a card still counts, since it becomes card dues.
+  - A bank or wallet account can be **set aside** as a sinking fund (stored as `accounts.is_blocked`). Its balance isn't available to spend, but still counts in net position.
+  - The budget month's start day is set in More → Settings (FR-12, brought forward from Phase 2), since "this month" decides what's subtracted.
   - The Accounts summary hides a figure that is ₹0, such as Loans with nothing owed.
-- **Why:** The owner already sets money aside by moving it into blocked accounts (planned Slice → Blocked transfers). Counting it as available overstates what can be spent, and so do unpaid card dues.
+- **Why:** The owner used to "block" money in the old app by moving it to a Blocked account, but the money never left the bank. Planned payments say the same thing directly, without a make-believe account, and one idea replaces two.
 
 ## Open decisions
 

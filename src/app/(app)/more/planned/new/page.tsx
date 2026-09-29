@@ -7,9 +7,9 @@ import { isDate } from "@/lib/categories";
 import type { CommitmentInput } from "@/lib/recurring";
 import { CommitmentForm } from "../commitment-form";
 
-export const metadata: Metadata = { title: "New commitment · Paisa" };
+export const metadata: Metadata = { title: "Plan a payment · Paisa" };
 
-// A suggestion from the Recurring screen arrives as query parameters, which
+// A suggestion from the Planned screen arrives as query parameters, which
 // fill in the form. Saving checks everything again.
 function fromSuggestion(params: Record<string, string | string[] | undefined>): Partial<CommitmentInput> {
   const get = (key: string) => (typeof params[key] === "string" ? params[key] : undefined);
@@ -37,11 +37,11 @@ function fromSuggestion(params: Record<string, string | string[] | undefined>): 
   return initial;
 }
 
-export default async function NewCommitmentPage({ searchParams }: PageProps<"/more/recurring/new">) {
+export default async function NewCommitmentPage({ searchParams }: PageProps<"/more/planned/new">) {
   const [labels, params] = await Promise.all([getLabels(), searchParams]);
   return (
     <>
-      <PageHeader title="New commitment" back={{ href: "/more/recurring", label: "Back to recurring" }} />
+      <PageHeader title="Plan a payment" back={{ href: "/more/planned", label: "Back to planned" }} />
       <CommitmentForm {...labels} initial={fromSuggestion(params)} />
     </>
   );

@@ -126,9 +126,9 @@ export function AccountForm({ account, entryCount = 0, today }: Props) {
               className="mt-0.5 size-5 shrink-0 accent-(--accent)"
             />
             <span>
-              <span className="font-medium">Money here is blocked</span>
+              <span className="font-medium">Set aside (sinking fund)</span>
               <span className="block text-sm text-muted">
-                Already set aside for bills or planned spending, so it isn&rsquo;t counted as available to spend.
+                Money saved here for a known cost, so it isn&rsquo;t counted as available to spend.
               </span>
             </span>
           </label>

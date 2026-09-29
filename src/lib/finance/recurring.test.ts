@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { budgetMonthOf } from "./dates";
-import { at, commitment, tx } from "./fixtures";
+import { account, at, byId, commitment, tx } from "./fixtures";
 import {
   addMonths,
   committedIn,
   dueDates,
   paymentsByCommitment,
   pendingDues,
+  plannedToPay,
   recurringCost,
   reservedIn,
   upcoming,
@@ -133,4 +134,52 @@ test("monthly and yearly cost (INS-09)", () => {
   expect(recurringCost(19900, { unit: "month", every: 1 })).toEqual({ monthly: 19900, yearly: 238800 });
   expect(recurringCost(120000, { unit: "year", every: 1 })).toEqual({ monthly: 10000, yearly: 120000 });
   expect(recurringCost(50000, { unit: "week", every: 1 })).toEqual({ monthly: 216667, yearly: 2600000 });
+});
+
+describe("planned money to pay this month (TD-18)", () => {
+  // Budget months start on the 21st.
+  const month = budgetMonthOf("2026-09-29", 21);
+  const accounts = byId([
+    account("bank", "bank"),
+    { ...account("trip-fund", "wallet"), is_blocked: true },
+    account("cash", "wallet"),
+    account("card", "credit_card"),
+    account("index", "savings"),
+    account("loan", "loan"),
+  ]);
+  const rent = commitment({ id: "rent", amount: 1500000, first_due_on: "2026-10-01" });
+  const family = commitment({ id: "family", amount: 1000000, first_due_on: "2026-09-30" });
+  const sip = commitment({
+    id: "sip",
+    kind: "transfer",
+    amount: 500000,
+    subcategory_id: null,
+    to_account_id: "index",
+    first_due_on: "2026-10-05",
+  });
+
+  test("counts bills and savings still to pay up to the month's end, overdue included", () => {
+    const lateBill = commitment({ id: "late", amount: 90000, first_due_on: "2026-09-25" });
+    // 1 Oct rent, 30 Sep family, 5 Oct SIP, 25 Sep bill; next due dates fall after 20 Oct.
+    expect(plannedToPay([rent, family, sip, lateBill], [], accounts, month, "2026-09-29")).toBe(
+      1500000 + 1000000 + 500000 + 90000,
+    );
+    const paid = tx({ kind: "expense", amount: 1500000, recurring_id: "rent", occurred_at: at("2026-10-01") });
+    expect(plannedToPay([rent], [paid], accounts, month, "2026-10-02")).toBe(0);
+  });
+
+  test("leaves out what doesn't come from money available to spend", () => {
+    const cardBill = commitment({ id: "cb", kind: "transfer", amount: 800000, subcategory_id: null, to_account_id: "card", first_due_on: "2026-10-05" });
+    const toCash = commitment({ id: "atm", kind: "transfer", amount: 200000, subcategory_id: null, to_account_id: "cash", first_due_on: "2026-10-05" });
+    const fromFund = commitment({ id: "trip", amount: 300000, account_id: "trip-fund", first_due_on: "2026-10-05" });
+    const emi = commitment({ id: "emi", kind: "transfer", amount: 400000, subcategory_id: null, to_account_id: "loan", first_due_on: "2026-10-05" });
+    const onCard = commitment({ id: "ott", amount: 19900, account_id: "card", first_due_on: "2026-10-05" });
+    expect(plannedToPay([cardBill, toCash, fromFund, emi, onCard], [], accounts, month, "2026-09-29")).toBe(400000 + 19900);
+  });
+
+  test("one-off planned entries count too, until the month's end", () => {
+    const soon = tx({ kind: "expense", amount: 250000, is_planned: true, occurred_at: at("2026-10-10") });
+    const nextMonth = tx({ kind: "expense", amount: 250000, is_planned: true, occurred_at: at("2026-10-21") });
+    expect(plannedToPay([], [soon, nextMonth], accounts, month, "2026-09-29")).toBe(250000);
+  });
 });

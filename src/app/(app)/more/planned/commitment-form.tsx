@@ -10,6 +10,7 @@ import { toRupeesInput } from "@/lib/finance/money";
 import type { CommitmentInput, Unit } from "@/lib/recurring";
 import {
   createCommitment,
+  createPlannedOnce,
   deleteCommitment,
   setPaused,
   updateCommitment,
@@ -66,6 +67,8 @@ function startingValues(commitment: CommitmentRow | undefined, initial: Partial<
 export function CommitmentForm({ accounts, subcategories, commitment, initial }: Props) {
   const router = useRouter();
   const [values, setValues] = useState(() => startingValues(commitment, initial));
+  // A new payment can happen once; an existing commitment repeats.
+  const [repeats, setRepeats] = useState(Boolean(commitment) || Boolean(initial?.unit));
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -101,7 +104,7 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
     if (commitment) {
       run(() => updateCommitment(commitment.id, values), () => setSaved(true));
     } else {
-      run(() => createCommitment(values), () => router.push("/more/recurring"));
+      run(() => (repeats ? createCommitment(values) : createPlannedOnce(values)), () => router.push("/more/planned"));
     }
   }
 
@@ -121,6 +124,25 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
 
   return (
     <form onSubmit={submit} className="flex max-w-xl flex-col gap-5">
+      {!commitment && (
+        <div role="radiogroup" aria-label="How often" className="grid grid-cols-2 gap-1 rounded-xl bg-foreground/[0.06] p-1">
+          {([false, true] as const).map((r) => (
+            <button
+              key={String(r)}
+              type="button"
+              role="radio"
+              aria-checked={repeats === r}
+              onClick={() => setRepeats(r)}
+              className={`h-10 rounded-lg text-sm font-medium transition-colors ${
+                repeats === r ? "bg-surface text-foreground shadow-sm" : "text-muted hover:text-foreground"
+              }`}
+            >
+              {r ? "Repeats" : "Once"}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div role="radiogroup" aria-label="Kind of payment" className="grid grid-cols-2 gap-1 rounded-xl bg-foreground/[0.06] p-1">
         {(["expense", "transfer"] as const).map((k) => (
           <button
@@ -167,20 +189,22 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
             />
           </div>
         </label>
-        <label className="flex min-h-11 cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={values.is_variable}
-            onChange={(e) => set({ is_variable: e.target.checked })}
-            className="mt-0.5 size-5 shrink-0 accent-(--accent)"
-          />
-          <span>
-            <span className="font-medium">The amount changes each time</span>
-            <span className="block text-sm text-muted">
-              Like electricity. You enter what you paid when you confirm it.
+        {repeats && (
+          <label className="flex min-h-11 cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={values.is_variable}
+              onChange={(e) => set({ is_variable: e.target.checked })}
+              className="mt-0.5 size-5 shrink-0 accent-(--accent)"
+            />
+            <span>
+              <span className="font-medium">The amount changes each time</span>
+              <span className="block text-sm text-muted">
+                Like electricity. You enter what you paid when you confirm it.
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+        )}
       </div>
 
       {values.kind === "expense" ? (
@@ -214,37 +238,39 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
         </div>
       )}
 
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1.5 text-sm font-medium">Repeats every</legend>
-        <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3">
-          <input
-            type="number"
-            min={1}
-            max={52}
-            value={values.every}
-            onChange={(e) => set({ every: Number(e.target.value) })}
-            aria-label="How many"
-            required
-            className={`${inputClass} tabular-nums`}
-          />
-          <select
-            value={values.unit}
-            onChange={(e) => set({ unit: e.target.value as Unit })}
-            aria-label="Weeks, months or years"
-            className={`${inputClass} px-2`}
-          >
-            {UNITS.map((u) => (
-              <option key={u.unit} value={u.unit}>
-                {values.every === 1 ? u.one : u.many}
-              </option>
-            ))}
-          </select>
-        </div>
-      </fieldset>
+      {repeats && (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-sm font-medium">Repeats every</legend>
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3">
+            <input
+              type="number"
+              min={1}
+              max={52}
+              value={values.every}
+              onChange={(e) => set({ every: Number(e.target.value) })}
+              aria-label="How many"
+              required
+              className={`${inputClass} tabular-nums`}
+            />
+            <select
+              value={values.unit}
+              onChange={(e) => set({ unit: e.target.value as Unit })}
+              aria-label="Weeks, months or years"
+              className={`${inputClass} px-2`}
+            >
+              {UNITS.map((u) => (
+                <option key={u.unit} value={u.unit}>
+                  {values.every === 1 ? u.one : u.many}
+                </option>
+              ))}
+            </select>
+          </div>
+        </fieldset>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-sm font-medium">{commitment ? "First due on" : "Next due on"}</span>
+          <span className="text-sm font-medium">{commitment ? "First due on" : repeats ? "Next due on" : "Due on"}</span>
           <input
             type="date"
             value={values.first_due_on}
@@ -253,19 +279,21 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
             className={`${inputClass} px-2`}
           />
         </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-sm font-medium">
-            Ends on <span className="font-normal text-muted">· Optional</span>
-          </span>
-          <input
-            type="date"
-            value={values.ends_on}
-            onChange={(e) => set({ ends_on: e.target.value })}
-            className={`${inputClass} px-2`}
-          />
-        </label>
+        {repeats && (
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-sm font-medium">
+              Ends on <span className="font-normal text-muted">· Optional</span>
+            </span>
+            <input
+              type="date"
+              value={values.ends_on}
+              onChange={(e) => set({ ends_on: e.target.value })}
+              className={`${inputClass} px-2`}
+            />
+          </label>
+        )}
       </div>
-      {!commitment && values.first_due_on && values.first_due_on < istDate(new Date()) && (
+      {!commitment && repeats && values.first_due_on && values.first_due_on < istDate(new Date()) && (
         <p className="-mt-2 text-sm font-medium text-negative">
           That&rsquo;s in the past. Every due date from then until today will show as due now, to confirm or skip.
         </p>
@@ -273,7 +301,9 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
       <p className="-mt-2 text-sm text-muted">
         {commitment
           ? "Due dates count from this date, and payments cover them in order. Change it only if the schedule changes."
-          : "It's due again every time after this. A day like the 31st falls on the last day of shorter months."}
+          : repeats
+            ? "It's due again every time after this. A day like the 31st falls on the last day of shorter months."
+            : "The money stays in the account until you confirm it's paid, but it isn't counted as free to spend."}
       </p>
 
       {error && (
@@ -288,7 +318,7 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
       )}
       <div className="flex flex-wrap gap-3">
         <button type="submit" disabled={pending} className={buttonClass.primary}>
-          {pending ? "Saving…" : commitment ? "Save changes" : "Add commitment"}
+          {pending ? "Saving…" : commitment ? "Save changes" : "Add planned payment"}
         </button>
         {commitment && (
           <>
@@ -305,7 +335,7 @@ export function CommitmentForm({ accounts, subcategories, commitment, initial }:
               disabled={pending}
               onClick={() => {
                 if (confirm(`Delete "${commitment.name}"? Its past payments stay, just no longer linked to it.`)) {
-                  run(() => deleteCommitment(commitment.id), () => router.push("/more/recurring"));
+                  run(() => deleteCommitment(commitment.id), () => router.push("/more/planned"));
                 }
               }}
               className={buttonClass.danger}

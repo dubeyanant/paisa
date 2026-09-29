@@ -9,9 +9,10 @@ export const metadata: Metadata = { title: "More · Paisa" };
 
 const LINKS = [
   { href: "/budget", label: "Budget", hint: "Your rule, each bucket this month, and past months" },
-  { href: "/more/recurring", label: "Recurring", hint: "Rent, bills and subscriptions, and what's due" },
+  { href: "/more/planned", label: "Planned", hint: "Rent, bills and one-off payments, and what's due" },
   { href: "/more/categories", label: "Categories", hint: "Rename, hide, merge, and choose budget buckets" },
   { href: "/more/tags", label: "Tags", hint: "Trips and events, and what they cost" },
+  { href: "/more/settings", label: "Settings", hint: "The day your month starts" },
 ];
 
 export default async function MorePage() {

@@ -13,7 +13,7 @@ export type AccountWithBalance = {
   statement_day: number | null;
   due_day: number | null;
   is_emergency_fund: boolean;
-  // Money set aside for bills and planned spending (TD-18).
+  // Set aside for a known cost, like a sinking fund (TD-18).
   is_blocked: boolean;
   archived_at: string | null;
   // Opening balance plus every confirmed transaction, from the

@@ -49,11 +49,12 @@ export function cardOutstanding(balance: number): number {
 }
 
 export type BalanceSummary = {
-  // Bank + wallet (FR-1), blocked accounts included.
+  // Bank + wallet (FR-1), set-aside accounts included.
   available: number;
-  // In blocked bank and wallet accounts: set aside for bills and planned
-  // spending, so not free to spend.
-  blocked: number;
+  // In set-aside bank and wallet accounts (sinking funds), so not free to spend.
+  setAside: number;
+  // Planned payments still to pay this month, from plannedToPay().
+  planned: number;
   // Total owed across credit cards. A card in credit doesn't reduce what's
   // owed on the others.
   cardDues: number;
@@ -68,20 +69,24 @@ export type BalanceSummary = {
   loansOwed: number;
   // Everything owned minus everything owed (INS-18).
   netPosition: number;
-  // Bank and cash minus blocked money and card dues: what's really free to
-  // spend right now.
+  // Bank and cash minus set-aside money, card dues and planned payments:
+  // what's really free to spend (TD-18).
   spendable: number;
 };
 
-export function balanceSummary(accounts: Account[], balances: Map<string, number>): BalanceSummary {
-  const summary = { available: 0, blocked: 0, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
+export function balanceSummary(
+  accounts: Account[],
+  balances: Map<string, number>,
+  planned = 0,
+): BalanceSummary {
+  const summary = { available: 0, setAside: 0, planned, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
   for (const account of accounts) {
     const balance = balances.get(account.id) ?? 0;
     switch (account.type) {
       case "bank":
       case "wallet":
         summary.available += balance;
-        if (account.is_blocked) summary.blocked += balance;
+        if (account.is_blocked) summary.setAside += balance;
         break;
       case "credit_card":
       case "loan": {
@@ -99,10 +104,10 @@ export function balanceSummary(accounts: Account[], balances: Map<string, number
         break;
     }
   }
-  const { available, blocked, cardDues, cardCredit, savings, deposits, loansOwed } = summary;
+  const { available, setAside, cardDues, cardCredit, savings, deposits, loansOwed } = summary;
   return {
     ...summary,
     netPosition: available + savings + deposits + cardCredit - cardDues - loansOwed,
-    spendable: available - blocked - cardDues,
+    spendable: available - setAside - cardDues - planned,
   };
 }

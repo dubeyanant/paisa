@@ -1,30 +1,26 @@
 import Link from "next/link";
 import { ChevronRightIcon } from "@/components/icons";
 import { Amount, Card, PageHeader, buttonClass } from "@/components/ui";
-import { listAccounts } from "@/lib/data/accounts";
 import { getLabels, getLatestEntries } from "@/lib/data/entries";
-import { getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
-import { balanceSummary } from "@/lib/finance/balances";
-import { istDate } from "@/lib/finance/dates";
+import { getMoneySummary } from "@/lib/data/summary";
 import { recurringOverview } from "@/lib/recurring";
 import { EntryList } from "./entry-list";
-import { DueNow } from "./more/recurring/due-now";
-import { dueRows, lookups } from "./more/recurring/rows";
+import { ComingUp } from "./more/planned/coming-up";
+import { DueNow } from "./more/planned/due-now";
+import { dueRows, lookups } from "./more/planned/rows";
 
-// A first Home: where the money is, bills due now, and the latest entries.
-// Insights arrive in roadmap step 9.
+// A first Home: what's free to spend, planned payments due now and coming up,
+// and the latest entries. Insights arrive in roadmap step 9.
 export default async function Home() {
-  const [accounts, labels, { latest, planned }, commitments, scheduled] = await Promise.all([
-    listAccounts(),
+  const now = new Date();
+  const [{ summary, commitments, scheduled, today }, labels, { latest }] = await Promise.all([
+    getMoneySummary(now),
     getLabels(),
     getLatestEntries(),
-    listCommitments(),
-    getScheduleTransactions(),
   ]);
-  const summary = balanceSummary(accounts, new Map(accounts.map((a) => [a.id, a.balance])));
-  const now = new Date();
-  const { dueNow } = recurringOverview(commitments, scheduled, now);
-  const due = dueRows(dueNow, commitments, lookups(labels), istDate(now));
+  const l = lookups(labels);
+  const { dueNow, upcoming } = recurringOverview(commitments, scheduled, now);
+  const due = dueRows(dueNow, commitments, l, today);
 
   return (
     <>
@@ -39,12 +35,12 @@ export default async function Home() {
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
               <Amount value={summary.spendable} />
             </p>
-            <p className="mt-1 text-sm text-muted">Bank and cash, minus blocked money and card dues.</p>
+            <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
             <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
               <div className="min-w-0">
-                <dt className="text-sm text-muted">Blocked</dt>
+                <dt className="text-sm text-muted">Planned this month</dt>
                 <dd className="truncate font-medium tabular-nums">
-                  <Amount value={summary.blocked} />
+                  <Amount value={summary.planned} />
                 </dd>
               </div>
               <div className="min-w-0">
@@ -53,6 +49,14 @@ export default async function Home() {
                   <Amount value={summary.cardDues} />
                 </dd>
               </div>
+              {summary.setAside !== 0 && (
+                <div className="min-w-0">
+                  <dt className="text-sm text-muted">Set aside</dt>
+                  <dd className="truncate font-medium tabular-nums">
+                    <Amount value={summary.setAside} />
+                  </dd>
+                </div>
+              )}
             </dl>
           </Card>
         </Link>
@@ -62,17 +66,22 @@ export default async function Home() {
             <section>
               <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">Due now</h2>
-                <Link href="/more/recurring" className="flex h-11 items-center text-sm font-medium text-accent">
-                  Recurring
+                <Link href="/more/planned" className="flex h-11 items-center text-sm font-medium text-accent">
+                  All planned
                 </Link>
               </div>
               <DueNow rows={due} />
             </section>
           )}
-          {planned.length > 0 && (
+          {upcoming.length > 0 && (
             <section>
-              <h2 className="mb-3 text-lg font-semibold">Planned</h2>
-              <EntryList entries={planned} {...labels} />
+              <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold">Planned</h2>
+                <Link href="/more/planned" className="flex h-11 items-center text-sm font-medium text-accent">
+                  See all
+                </Link>
+              </div>
+              <ComingUp items={upcoming.slice(0, 5)} commitments={commitments} l={l} today={today} />
             </section>
           )}
           <section>
