@@ -6,7 +6,15 @@ import { streakLabel } from "@/lib/budget";
 import type { BucketAdherence } from "@/lib/finance/budget";
 import type { Commitment } from "@/lib/finance/types";
 import type { RecurringPayment } from "@/lib/finance/detection";
-import type { CategoryTrend, EmergencyFund, Pace, Ready, SavingsMonth, SmallSpend } from "@/lib/finance/insights";
+import type {
+  CategoryTrend,
+  CommittedVsFree,
+  EmergencyFund,
+  Pace,
+  Ready,
+  SavingsMonth,
+  SmallSpend,
+} from "@/lib/finance/insights";
 import { formatINR } from "@/lib/finance/money";
 import type { UpcomingItem } from "@/lib/finance/recurring";
 import type { TagReport } from "@/lib/finance/tags";
@@ -18,19 +26,34 @@ export function notReady(monthsToGo: number): string {
   return `Available after ${monthsToGo} more ${monthsToGo === 1 ? "month" : "months"} of entries.`;
 }
 
-// INS-02: "You saved 25% this month (₹15,000), up from 20% last month."
+// INS-01: "₹43,090 of your ₹82,641 income this month goes to planned payments (52%)."
+export function committedHeadline(c: CommittedVsFree): string {
+  if (c.income === 0) {
+    return c.committed > 0
+      ? `No income yet this month. ${formatINR(c.committed)} of planned payments are due.`
+      : "No income yet this month.";
+  }
+  if (c.committed > c.income) {
+    return `${formatINR(c.committed)} of planned payments are due this month, more than your ${formatINR(c.income)} income so far.`;
+  }
+  return `${formatINR(c.committed)} of your ${formatINR(c.income)} income this month goes to planned payments (${percent(c.committed / c.income)}).`;
+}
+
+// INS-02 over finished months, oldest first: "You saved 23% last month
+// (₹19,000), down from 30% the month before."
 export function savingsHeadline(months: SavingsMonth[]): string {
-  const now = months[months.length - 1];
+  if (months.length === 0) return "Shows once your first month is over.";
+  const last = months[months.length - 1];
   const before = months.length > 1 ? months[months.length - 2] : undefined;
-  if (now.rate === null) return "No income yet this month, so there's no savings rate.";
+  if (last.rate === null) return "No income last month, so there's no savings rate.";
   const main =
-    now.saved >= 0
-      ? `You saved ${percent(now.rate)} this month (${formatINR(now.saved)})`
-      : `You spent ${formatINR(-now.saved)} more than you earned this month`;
+    last.saved >= 0
+      ? `You saved ${percent(last.rate)} last month (${formatINR(last.saved)})`
+      : `You spent ${formatINR(-last.saved)} more than you earned last month`;
   if (!before || before.rate === null) return `${main}.`;
-  const [a, b] = [Math.round(now.rate * 100), Math.round(before.rate * 100)];
-  if (a === b) return `${main}, the same as last month.`;
-  return `${main}, ${a > b ? "up" : "down"} from ${percent(before.rate)} last month.`;
+  const [a, b] = [Math.round(last.rate * 100), Math.round(before.rate * 100)];
+  if (a === b) return `${main}, the same as the month before.`;
+  return `${main}, ${a > b ? "up" : "down"} from ${percent(before.rate)} the month before.`;
 }
 
 // INS-03: "Your emergency fund covers 2.5 months of expenses."
@@ -42,7 +65,8 @@ export function emergencyHeadline(fund: Ready<EmergencyFund>, hasFund: boolean):
   return `Your emergency fund covers ${months.toFixed(1)} ${months === 1 ? "month" : "months"} of expenses.`;
 }
 
-// INS-04: "Day 10: you've spent 65% of a usual month. Food is running hot."
+// INS-04, planned payments left out: "Day 10: you've spent 65% of a usual
+// month. Food is running hot."
 export function paceHeadline(
   pace: Ready<{ day: number; total: Pace; byCategory: Map<string, Pace> }>,
   categoryName: (id: string) => string,
@@ -73,14 +97,15 @@ export function trendHeadline(
   if (flagged.length === 0) return "No category is well above its usual this month.";
   const [id, top] = flagged[0];
   const more = flagged.length > 1 ? ` ${flagged.length - 1} more ${flagged.length === 2 ? "is" : "are"} well above usual too.` : "";
-  return `${categoryName(id)} is ${times(top.multiple!)} your usual this month.${more}`;
+  return `${categoryName(id)} is already ${times(top.multiple!)} your usual this month.${more}`;
 }
 
-// INS-06: "Rickshaw: 20 spends, ₹2,400 this month, about ₹28,800 a year."
+// INS-06 over the last 30 days: "Rickshaw: 20 spends, ₹2,400 in the last 30
+// days, about ₹28,800 a year."
 export function smallSpendHeadline(top: SmallSpend | undefined, name: string, threshold: number): string {
-  if (!top) return `No spends under ${formatINR(threshold)} this month.`;
+  if (!top) return `No spends under ${formatINR(threshold)} in the last 30 days.`;
   const spends = top.count === 1 ? "1 spend" : `${top.count} spends`;
-  return `${name}: ${spends}, ${formatINR(top.total)} this month, about ${formatINR(top.yearly)} a year.`;
+  return `${name}: ${spends}, ${formatINR(top.total)} in the last 30 days, about ${formatINR(top.yearly)} a year.`;
 }
 
 // INS-09: what recurring payments cost, and the latest price rise.

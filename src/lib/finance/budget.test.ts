@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Transaction } from "./types";
 import { bucketActuals, bucketProblem, bucketTargets, budgetAdherence, budgetBase } from "./budget";
 import { budgetMonthOf } from "./dates";
 import { account, at, byId, tx } from "./fixtures";
@@ -183,5 +184,19 @@ describe("INS-17 budget rule adherence", () => {
     const byId = new Map(buckets.map((b) => [b.bucket.id, b]));
     expect(byId.get("wants")?.status).toBe("at_risk");
     expect(byId.get("savings")?.status).toBe("at_risk");
+  });
+
+  test("planned payments count in full, so rent paid early isn't ahead of pace", () => {
+    const rent = tx({ kind: "expense", amount: 2500000, subcategory_id: "rent", occurred_at: at("2026-09-02"), recurring_id: "rent" });
+    const sip = tx({ kind: "transfer", amount: 1200000, to_account_id: "mf", occurred_at: at("2026-09-25"), recurring_id: "sip" });
+    const isPlanned = (t: Transaction) => Boolean(t.recurring_id);
+    // Without knowing what's planned, ₹25,000 of rent by day 5 heads for ₹1.5 lakh.
+    const plain = budgetAdherence([rent], rule, accounts, sep, "2026-09-05", 0);
+    expect(plain.buckets.find((b) => b.bucket.id === "needs")?.status).toBe("at_risk");
+    const { buckets } = budgetAdherence([rent], rule, accounts, sep, "2026-09-05", 0, { upcoming: [sip], isPlanned });
+    const byId = new Map(buckets.map((b) => [b.bucket.id, b]));
+    expect(byId.get("needs")?.status).toBe("on_track");
+    // The ₹12,000 SIP due on the 25th covers the ₹12,000 savings target.
+    expect(byId.get("savings")?.status).toBe("on_track");
   });
 });

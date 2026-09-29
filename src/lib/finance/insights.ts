@@ -73,6 +73,20 @@ export function spendingByCategory(
   return byCategory;
 }
 
+// Everyday spending: the transactions left once planned payments are taken
+// out, so rent paid on the 1st doesn't look like spending ahead of pace. Leaves
+// out payments linked to a commitment, and anything in the subcategory of an
+// active expense commitment, since payments from before commitments existed
+// (the imported history) aren't linked.
+export function everyday(transactions: Transaction[], commitments: Commitment[], today: string): Transaction[] {
+  const planned = new Set(
+    commitments
+      .filter((c) => c.kind === "expense" && !c.paused_at && (!c.ends_on || c.ends_on >= today))
+      .map((c) => c.subcategory_id),
+  );
+  return transactions.filter((t) => !t.recurring_id && !(t.subcategory_id && planned.has(t.subcategory_id)));
+}
+
 // INS-01 Committed vs free money --------------------------------------------------
 
 export type CommittedVsFree = {

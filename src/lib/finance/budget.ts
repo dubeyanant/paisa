@@ -1,7 +1,9 @@
 import { daysElapsed, periodLength, recentPeriods, type Period } from "./dates";
+import { everyday } from "./insights";
+import { stillToPay } from "./recurring";
 import { assertPaise } from "./money";
 import { actualsIn, periodTotals, savingsFlow } from "./totals";
-import type { Account, BudgetBucket, Transaction } from "./types";
+import type { Account, BudgetBucket, Commitment, Transaction } from "./types";
 
 const FULL_SHARE_BP = 10000; // 100%
 
@@ -109,9 +111,10 @@ export type BucketAdherence = {
   remaining: number;
   // actual ÷ base ("Wants at 36% vs 30% target"), or null with no base.
   shareOfBase: number | null;
-  // A spending bucket is over past its target, and at risk while ahead of the
-  // pace that reaches the target on the last day. The savings bucket is at risk
-  // while behind that pace, and never over.
+  // A spending bucket is over past its target, and at risk while the month is
+  // heading past it. The savings bucket is at risk while it's heading short of
+  // its target, and never over. Where the month is heading: planned payments
+  // in full, paid or not, and everyday spending at its pace so far.
   status: BucketStatus;
   // Complete months off target in a row just before this one, plus this one if
   // it's already over: "3rd month over".
@@ -124,6 +127,26 @@ function onTarget(bucket: BudgetBucket, actual: number, target: number): boolean
   return bucket.holds_savings ? actual >= target : actual <= target;
 }
 
+// Planned payments this month: `upcoming` are the ones still to pay, as
+// transactions (stillToPay()), and `isPlanned` picks out the ones already paid.
+// Without them, everything counts as everyday spending.
+export type PlannedPayments = { upcoming: Transaction[]; isPlanned: (t: Transaction) => boolean };
+
+// The planned payments of the budget month, for budgetAdherence(). `transactions`
+// must include every payment linked to a commitment and every planned entry.
+export function plannedPayments(
+  transactions: Transaction[],
+  commitments: Commitment[],
+  current: Period,
+  today: string,
+): PlannedPayments {
+  const everydayIds = new Set(everyday(transactions, commitments, today).map((t) => t.id));
+  return {
+    upcoming: stillToPay(commitments, transactions, current, today),
+    isPlanned: (t) => !everydayIds.has(t.id),
+  };
+}
+
 export function budgetAdherence(
   transactions: Transaction[],
   rule: BudgetRule,
@@ -131,6 +154,7 @@ export function budgetAdherence(
   current: Period,
   today: string,
   historyMonths = 6,
+  planned?: PlannedPayments,
 ): { base: number; buckets: BucketAdherence[]; unassigned: number } {
   const month = (period: Period) => {
     const base = budgetBase(rule, periodTotals(transactions, accountsById, period).income);
@@ -145,19 +169,26 @@ export function budgetAdherence(
   const past = recentPeriods(current, historyMonths + 1).slice(0, -1).map(month);
   const elapsed = daysElapsed(current, today);
   const length = periodLength(current);
+  const plannedPaid = planned
+    ? bucketActuals(transactions.filter(planned.isPlanned), rule, accountsById, current).byBucket
+    : new Map<string, number>();
+  const plannedLeft = planned
+    ? bucketActuals(planned.upcoming, rule, accountsById, current).byBucket
+    : new Map<string, number>();
 
   const buckets = rule.buckets.map((bucket): BucketAdherence => {
     const target = now.targets.get(bucket.id)!;
     const actual = now.actuals.byBucket.get(bucket.id)!;
-    // actual ÷ elapsed vs target ÷ length, without dividing.
-    const aheadOfPace = actual * length > target * elapsed;
+    const paid = plannedPaid.get(bucket.id) ?? 0;
+    const projected =
+      paid + (plannedLeft.get(bucket.id) ?? 0) + Math.round(((actual - paid) * length) / Math.max(elapsed, 1));
     const status: BucketStatus = bucket.holds_savings
-      ? actual * length >= target * elapsed
+      ? projected >= target
         ? "on_track"
         : "at_risk"
       : actual > target
         ? "over"
-        : aheadOfPace
+        : projected > target
           ? "at_risk"
           : "on_track";
 

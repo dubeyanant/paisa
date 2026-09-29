@@ -3,7 +3,7 @@ import type { Alert } from "@/lib/finance/alerts";
 import { budgetMonthOf, type Period } from "@/lib/finance/dates";
 import { commitment } from "@/lib/finance/fixtures";
 import type { SavingsMonth } from "@/lib/finance/insights";
-import { alertText, freeMoneyText, paceText, percent, savingsText, times, type AlertNames } from "./home";
+import { alertText, paceText, percent, savingsText, times, type AlertNames } from "./home";
 
 const sep = budgetMonthOf("2026-09-01");
 const aug = budgetMonthOf("2026-08-01");
@@ -86,31 +86,6 @@ describe("alertText", () => {
   });
 });
 
-describe("freeMoneyText", () => {
-  const base = { income: 6000000, committed: 3539900, discretionary: 1260100, planned: 0, reserved: 0 };
-
-  test("UAT-3: committed and free", () => {
-    expect(freeMoneyText({ ...base, free: 2460100, freeLeft: 1200000 })).toBe(
-      "₹35,399 of your ₹60,000 income is committed. ₹24,601 is free; ₹12,000 of it is left.",
-    );
-  });
-
-  test("spending past what was free", () => {
-    expect(freeMoneyText({ ...base, free: 2460100, freeLeft: -50000 })).toBe(
-      "₹35,399 of your ₹60,000 income is committed. ₹24,601 was free, and spending has gone ₹500 past it.",
-    );
-  });
-
-  test("more committed than came in, or no income yet", () => {
-    expect(freeMoneyText({ ...base, income: 3000000, free: -539900, freeLeft: -1800000 })).toBe(
-      "₹35,399 of your ₹30,000 income is committed. That's ₹5,399 more than came in.",
-    );
-    expect(freeMoneyText({ ...base, income: 0, free: -3539900, freeLeft: 0 })).toBe(
-      "No income yet this month, and ₹35,399 is committed.",
-    );
-  });
-});
-
 describe("savingsText", () => {
   const month = (period: Period, income: number, spending: number): SavingsMonth => ({
     period,
@@ -121,22 +96,23 @@ describe("savingsText", () => {
     invested: 0,
   });
 
-  test("this month and last", () => {
+  test("last month, and the month before", () => {
     expect(savingsText([month(aug, 6000000, 4800000), month(sep, 6000000, 4500000)], "2026-01-01")).toEqual({
       figure: "25%",
-      text: "₹15,000 saved so far. Last month: 20%.",
+      text: "₹15,000 saved. The month before: 20%.",
     });
   });
 
-  test("leaves out last month before the first entry", () => {
+  test("leaves out a month before the first entry", () => {
     expect(savingsText([month(aug, 0, 0), month(sep, 6000000, 6600000)], "2026-09-02")).toEqual({
       figure: "-10%",
       text: "₹6,000 more spent than earned.",
     });
   });
 
-  test("no income yet", () => {
-    expect(savingsText([month(aug, 1, 0), month(sep, 0, 500)], null).figure).toBe("–");
+  test("before the first month is over, or with no income", () => {
+    expect(savingsText([month(aug, 0, 0), month(sep, 0, 0)], "2026-10-02").text).toBe("Shows once your first month is over.");
+    expect(savingsText([month(aug, 1, 0), month(sep, 0, 500)], "2026-01-01").text).toBe("No income last month.");
   });
 });
 

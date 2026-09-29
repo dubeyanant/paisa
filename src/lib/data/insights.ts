@@ -4,12 +4,14 @@ import { getActiveRule, getFirstEntryDate, getTransactionsBetween } from "@/lib/
 import { getLabels } from "@/lib/data/entries";
 import { getDetectionHistory } from "@/lib/data/recurring";
 import { getMoneySummary } from "@/lib/data/summary";
-import { budgetAdherence } from "@/lib/finance/budget";
-import { istDate, shiftBudgetMonth } from "@/lib/finance/dates";
+import { budgetAdherence, plannedPayments } from "@/lib/finance/budget";
+import { addDays, istDate, shiftBudgetMonth } from "@/lib/finance/dates";
 import { recurringPayments } from "@/lib/finance/detection";
 import {
   categoryTrends,
+  committedVsFree,
   emergencyFundCoverage,
+  everyday,
   monthToDatePace,
   savingsTrend,
   smallSpendLeak,
@@ -61,11 +63,16 @@ export async function getInsights(now = new Date()) {
     today,
     firstDate,
     threshold,
-    savings: savingsTrend(transactions, accountsById, month, HISTORY_MONTHS),
+    free: committedVsFree(transactions, accountsById, commitments, month, today),
+    // Finished months only: until a month ends, rent and bills still to pay
+    // look like money saved.
+    savings: savingsTrend(transactions, accountsById, shiftBudgetMonth(month, -1), HISTORY_MONTHS),
     emergency: emergencyFundCoverage(transactions, accounts, month, firstDate, balances),
-    pace: monthToDatePace(transactions, accountsById, categoryOf, month, today, firstDate),
+    // Planned payments (rent, bills) are known in advance, so pace leaves them out.
+    pace: monthToDatePace(everyday(transactions, commitments, today), accountsById, categoryOf, month, today, firstDate),
     trends: categoryTrends(transactions, categoryOf, month, firstDate),
-    smallSpends: smallSpendLeak(transactions, month, threshold),
+    // The last 30 days, so it's a full month's worth on any day.
+    smallSpends: smallSpendLeak(transactions, { start: addDays(today, -29), end: addDays(today, 1) }, threshold),
     // Paying a card bill isn't a cost of its own: what was bought on the card
     // already counts as spending.
     recurring: recurringPayments(commitments, transactions, today).filter((p) => {
@@ -73,6 +80,11 @@ export async function getInsights(now = new Date()) {
       return !to || accountsById.get(to)?.type !== "credit_card";
     }),
     upcoming: upcoming(commitments, scheduled, today),
-    budget: rule ? { rule, ...budgetAdherence(transactions, rule, accountsById, month, today, HISTORY_MONTHS) } : null,
+    budget: rule
+      ? {
+          rule,
+          ...budgetAdherence(transactions, rule, accountsById, month, today, HISTORY_MONTHS, plannedPayments(transactions, commitments, month, today)),
+        }
+      : null,
   };
 }

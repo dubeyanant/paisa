@@ -5,6 +5,15 @@ import { recurringCost, type UpcomingItem } from "./recurring";
 
 // INS-19 Top alerts: the flags raised by the other insights, ordered by rupee
 // impact. The Home screen shows the top 3.
+//
+// Small flags aren't alerts (owner, 2026-09-29): a doctor's visit early in the
+// month or milk going up by ₹3 is noise. The insights themselves still show
+// them; only the alerts leave them out.
+
+// Spending ahead of pace, above usual or over a bucket's target by at least this.
+export const MIN_ALERT = 100000; // ₹1,000
+// A price rise costing at least this much more a year.
+export const MIN_PRICE_ALERT = 50000; // ₹500
 
 export type Alert =
   // INS-04: spending ahead of pace. categoryId is null for total spending.
@@ -12,7 +21,8 @@ export type Alert =
   | { kind: "pace"; categoryId: string | null; pace: Pace; impact: number }
   // INS-05: a category at 1.5× its typical month or more. Impact: the excess.
   | { kind: "trend"; categoryId: string; trend: CategoryTrend; impact: number }
-  // INS-09: a price rise. Impact: the extra cost over a year.
+  // INS-09: a price rise of a commitment the owner set up. Impact: the extra
+  // cost over a year.
   | { kind: "price"; payment: RecurringPayment; impact: number }
   // INS-17: a spending bucket over its target. Impact: the overspend.
   | { kind: "bucket"; adherence: BucketAdherence; impact: number }
@@ -34,11 +44,12 @@ export function alerts(sources: AlertSources): Alert[] {
   const byCategory = new Map<string, Alert>();
   const keepBiggest = (categoryId: string, alert: Alert) => {
     const existing = byCategory.get(categoryId);
+    if (alert.impact < MIN_ALERT) return;
     if (!existing || alert.impact > existing.impact) byCategory.set(categoryId, alert);
   };
   if (sources.pace?.ready) {
     const { total, byCategory: paces } = sources.pace;
-    if (total.runningHot) {
+    if (total.runningHot && total.spent - total.expected >= MIN_ALERT) {
       found.push({ kind: "pace", categoryId: null, pace: total, impact: total.spent - total.expected });
     }
     for (const [categoryId, pace] of paces) {
@@ -58,13 +69,14 @@ export function alerts(sources: AlertSources): Alert[] {
 
   for (const payment of sources.recurring ?? []) {
     const change = payment.priceChange;
-    if (change && change.to > change.from) {
-      const impact = recurringCost(change.to - change.from, payment.schedule).yearly;
-      found.push({ kind: "price", payment, impact });
-    }
+    // Detected series (groceries that happen to repeat) change price all the
+    // time; only commitments the owner set up are bills worth watching.
+    if (!payment.commitment || !change || change.to <= change.from) continue;
+    const impact = recurringCost(change.to - change.from, payment.schedule).yearly;
+    if (impact >= MIN_PRICE_ALERT) found.push({ kind: "price", payment, impact });
   }
   for (const adherence of sources.budget ?? []) {
-    if (adherence.status === "over") {
+    if (adherence.status === "over" && adherence.actual - adherence.target >= MIN_ALERT) {
       found.push({ kind: "bucket", adherence, impact: adherence.actual - adherence.target });
     }
   }
