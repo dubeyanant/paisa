@@ -1,0 +1,72 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { AccountsIcon, HomeIcon, MoreIcon } from "@/components/icons";
+
+const ITEMS = [
+  { href: "/", label: "Home", Icon: HomeIcon },
+  { href: "/accounts", label: "Accounts", Icon: AccountsIcon },
+  { href: "/more", label: "More", Icon: MoreIcon },
+];
+
+function isActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+// Side navigation on laptops and tablets.
+export function SideNav() {
+  const pathname = usePathname();
+  return (
+    <nav aria-label="Main" className="flex flex-col gap-1">
+      {ITEMS.map(({ href, label, Icon }) => {
+        const active = isActive(pathname, href);
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors ${
+              active
+                ? "bg-accent-soft text-accent"
+                : "text-muted hover:bg-foreground/5 hover:text-foreground"
+            }`}
+          >
+            <Icon className="size-5" />
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+// Bottom tab bar on phones, within reach of the thumb (NFR-1).
+export function BottomNav() {
+  const pathname = usePathname();
+  return (
+    <nav
+      aria-label="Main"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+    >
+      <div className="mx-auto flex max-w-md">
+        {ITEMS.map(({ href, label, Icon }) => {
+          const active = isActive(pathname, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={`flex h-16 flex-1 flex-col items-center justify-center gap-1 text-xs font-medium ${
+                active ? "text-accent" : "text-muted"
+              }`}
+            >
+              <Icon className="size-6" />
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

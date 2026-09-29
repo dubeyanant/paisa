@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
+/* Theme tokens. Use them through Tailwind: bg-surface, text-muted, border-line… */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  color-scheme: light dark;
+  --background: #f6f6f3;
+  --surface: #ffffff;
+  --foreground: #1b1c1a;
+  --muted: #676a64;
+  --line: #e3e3dd;
+  --accent: #0f6b5f;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e4f1ee;
+  --negative: #b42318;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f1110;
+    --surface: #181b1a;
+    --foreground: #ebece8;
+    --muted: #9ca09a;
+    --line: #2b2f2d;
+    --accent: #5ccfb9;
+    --accent-foreground: #06201b;
+    --accent-soft: #15302b;
+    --negative: #f97066;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-negative: var(--negative);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }

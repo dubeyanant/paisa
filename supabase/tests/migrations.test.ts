@@ -10,6 +10,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { accountBalances } from "../../src/lib/finance/balances";
+import type { Account, Transaction } from "../../src/lib/finance/types";
 
 const MIGRATIONS = join(import.meta.dir, "..", "migrations");
 
@@ -255,6 +257,80 @@ describe("transactions", () => {
 
     await as(OWNER, () => rows("delete from import_batches where id = $1", [batch.id]));
     expect(await count()).toBe(before - 2);
+  });
+});
+
+describe("account_balances view", () => {
+  const USER = "00000000-0000-4000-8000-000000000003";
+  const accounts: Account[] = [];
+  const transactions: Transaction[] = [];
+
+  beforeAll(async () => {
+    await db.query("insert into auth.users (id, email) values ($1, 'third@example.com')", [USER]);
+    for (const [name, type, opening_balance] of [
+      ["Bank", "bank", 1000000],
+      ["Card", "credit_card", -250000],
+      ["Fund", "savings", 0],
+      ["Loan", "loan", -50000000],
+      ["Unused", "wallet", 70000],
+    ] as const) {
+      const [row] = await as(USER, () =>
+        rows<{ id: string }>(
+          "insert into accounts (name, type, opening_balance) values ($1, $2, $3) returning id",
+          [name, type, opening_balance],
+        ),
+      );
+      accounts.push({ id: row.id, type, opening_balance });
+    }
+    const [bank, card, fund, loan] = accounts.map((a) => a.id);
+    const food = await subcategoryId(USER, "Groceries");
+    const salary = await subcategoryId(USER, "Salary");
+    const entries: Omit<Transaction, "id" | "occurred_at" | "bucket_override_id">[] = [
+      { kind: "expense", amount: 12050, account_id: bank, to_account_id: null, subcategory_id: food, is_planned: false },
+      { kind: "expense", amount: 99900, account_id: card, to_account_id: null, subcategory_id: food, is_planned: false },
+      { kind: "refund", amount: 5000, account_id: card, to_account_id: null, subcategory_id: food, is_planned: false },
+      { kind: "income", amount: 6000000, account_id: bank, to_account_id: null, subcategory_id: salary, is_planned: false },
+      { kind: "transfer", amount: 1234567, account_id: bank, to_account_id: card, subcategory_id: null, is_planned: false },
+      { kind: "transfer", amount: 1000000, account_id: bank, to_account_id: fund, subcategory_id: null, is_planned: false },
+      { kind: "transfer", amount: 2500000, account_id: bank, to_account_id: loan, subcategory_id: null, is_planned: false },
+      { kind: "adjustment", amount: -2500, account_id: bank, to_account_id: null, subcategory_id: null, is_planned: false },
+      { kind: "adjustment", amount: 700, account_id: fund, to_account_id: null, subcategory_id: null, is_planned: false },
+      // Planned entries don't count until confirmed (BR-7).
+      { kind: "expense", amount: 1500000, account_id: bank, to_account_id: null, subcategory_id: food, is_planned: true },
+      { kind: "transfer", amount: 300000, account_id: bank, to_account_id: card, subcategory_id: null, is_planned: true },
+    ];
+    for (const entry of entries) {
+      const occurred_at = new Date().toISOString();
+      const [row] = await as(USER, () =>
+        rows<{ id: string }>(
+          `insert into transactions (kind, amount, account_id, to_account_id, subcategory_id, is_planned, occurred_at)
+           values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+          [entry.kind, entry.amount, entry.account_id, entry.to_account_id, entry.subcategory_id, entry.is_planned, occurred_at],
+        ),
+      );
+      transactions.push({ ...entry, id: row.id, occurred_at, bucket_override_id: null });
+    }
+  });
+
+  test("agrees with accountBalances() from the calculation library", async () => {
+    const view = await as(USER, () =>
+      rows<{ account_id: string; balance: number }>("select account_id, balance from account_balances"),
+    );
+    const expected = accountBalances(accounts, transactions);
+    expect(new Map(view.map((r) => [r.account_id, Number(r.balance)]))).toEqual(expected);
+    // Spot checks, so a shared mistake in both can't pass unnoticed.
+    expect(expected.get(accounts[0].id)).toBe(1000000 - 12050 + 6000000 - 1234567 - 1000000 - 2500000 - 2500);
+    expect(expected.get(accounts[1].id)).toBe(-250000 - 99900 + 5000 + 1234567);
+    expect(expected.get(accounts[4].id)).toBe(70000);
+  });
+
+  test("shows each user only their own accounts", async () => {
+    const seen = await as(OWNER, () => rows<{ user_id: string }>("select user_id from account_balances"));
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((r) => r.user_id === OWNER)).toBe(true);
+    await expect(as(null, () => rows("select * from account_balances"))).rejects.toThrow(
+      /permission denied/,
+    );
   });
 });
 
