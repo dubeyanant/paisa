@@ -11,7 +11,10 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { accountBalances } from "../../src/lib/finance/balances";
-import type { Account, Transaction } from "../../src/lib/finance/types";
+import { bucketActuals } from "../../src/lib/finance/budget";
+import { istStartOf, periodContains, type Period } from "../../src/lib/finance/dates";
+import { periodTotals } from "../../src/lib/finance/totals";
+import type { Account, BudgetBucket, Transaction } from "../../src/lib/finance/types";
 
 const MIGRATIONS = join(import.meta.dir, "..", "migrations");
 
@@ -331,6 +334,304 @@ describe("account_balances view", () => {
     await expect(as(null, () => rows("select * from account_balances"))).rejects.toThrow(
       /permission denied/,
     );
+  });
+});
+
+describe("search_transactions and transaction_totals", () => {
+  const USER = "00000000-0000-4000-8000-000000000004";
+  const accountsById = new Map<string, Account>();
+  const transactions: Transaction[] = [];
+  const ids: Record<string, string> = {};
+  let rule: { buckets: BudgetBucket[]; assignments: Map<string, string> };
+  const MARCH: Period = { start: "2026-03-01", end: "2026-04-01" };
+
+  // The search as PostgREST calls it: named arguments, the rest left out.
+  const search = (args: Record<string, unknown> = {}) =>
+    as(USER, async () => {
+      const names = Object.keys(args);
+      const call = names.map((n, i) => `${n} => $${i + 1}`).join(", ");
+      return (
+        await rows<{ id: string }>(`select id from search_transactions(${call}) order by occurred_at, id`, Object.values(args))
+      ).map((r) => r.id);
+    });
+  const totals = (args: Record<string, unknown> = {}) =>
+    as(USER, async () => {
+      const names = Object.keys(args);
+      const call = names.map((n, i) => `${n} => $${i + 1}`).join(", ");
+      const [row] = await rows<Record<string, string | number>>(`select * from transaction_totals(${call})`, Object.values(args));
+      return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)]));
+    });
+
+  beforeAll(async () => {
+    await db.query("insert into auth.users (id, email) values ($1, 'fourth@example.com')", [USER]);
+    for (const [name, type] of [
+      ["Bank", "bank"],
+      ["Card", "credit_card"],
+      ["Fund", "savings"],
+      ["Deposit", "savings"],
+    ] as const) {
+      const [row] = await as(USER, () =>
+        rows<{ id: string }>("insert into accounts (name, type) values ($1, $2) returning id", [name, type]),
+      );
+      ids[name] = row.id;
+      accountsById.set(row.id, { id: row.id, type, opening_balance: 0 });
+    }
+    for (const name of ["Rickshaw", "Groceries", "Gym & training", "Salary"]) {
+      ids[name] = await subcategoryId(USER, name);
+    }
+    const buckets = await rows<BudgetBucket & { id: string }>(
+      `select b.id, b.name, b.share_bp, b.holds_savings
+         from budget_buckets b join budget_rules r on r.id = b.rule_id
+        where r.user_id = $1 and r.is_active order by b.sort_order`,
+      [USER],
+    );
+    for (const b of buckets) ids[b.name] = b.id;
+    const assignments = await rows<{ subcategory_id: string; bucket_id: string }>(
+      "select subcategory_id, bucket_id from bucket_assignments where user_id = $1",
+      [USER],
+    );
+    rule = { buckets, assignments: new Map(assignments.map((a) => [a.subcategory_id, a.bucket_id])) };
+
+    const { Bank, Card, Fund, Deposit, Rickshaw, Groceries, Salary } = ids;
+    const gym = ids["Gym & training"];
+    const entries: [string, Omit<Transaction, "id" | "occurred_at">][] = [
+      // occurred_at in IST
+      ["2026-02-28T23:59", { kind: "expense", amount: 11100, account_id: Bank, to_account_id: null, subcategory_id: Rickshaw, is_planned: false, bucket_override_id: null, note: "February" }],
+      ["2026-03-01T00:30", { kind: "expense", amount: 12000, account_id: Bank, to_account_id: null, subcategory_id: Rickshaw, is_planned: false, bucket_override_id: null, note: "Auto to 50%_off sale" }],
+      ["2026-03-02T09:00", { kind: "expense", amount: 45050, account_id: Card, to_account_id: null, subcategory_id: Groceries, is_planned: false, bucket_override_id: null, note: null }],
+      ["2026-03-03T10:00", { kind: "refund", amount: 5000, account_id: Card, to_account_id: null, subcategory_id: Groceries, is_planned: false, bucket_override_id: null, note: "Returned" }],
+      // Gym is a Want, but this one is overridden to Needs.
+      ["2026-03-04T07:00", { kind: "expense", amount: 250000, account_id: Bank, to_account_id: null, subcategory_id: gym, is_planned: false, bucket_override_id: ids.Needs, note: null }],
+      ["2026-03-04T08:00", { kind: "expense", amount: 70000, account_id: Bank, to_account_id: null, subcategory_id: gym, is_planned: false, bucket_override_id: null, note: null }],
+      ["2026-03-05T10:00", { kind: "income", amount: 6000100, account_id: Bank, to_account_id: null, subcategory_id: Salary, is_planned: false, bucket_override_id: null, note: null }],
+      ["2026-03-06T10:00", { kind: "transfer", amount: 1234567, account_id: Bank, to_account_id: Card, subcategory_id: null, is_planned: false, bucket_override_id: null, note: "Card bill" }],
+      ["2026-03-07T10:00", { kind: "transfer", amount: 1000000, account_id: Bank, to_account_id: Fund, subcategory_id: null, is_planned: false, bucket_override_id: null, note: null }],
+      ["2026-03-08T10:00", { kind: "transfer", amount: 200000, account_id: Fund, to_account_id: Bank, subcategory_id: null, is_planned: false, bucket_override_id: null, note: null }],
+      // Between two savings accounts: neither saved nor withdrawn.
+      ["2026-03-09T10:00", { kind: "transfer", amount: 300000, account_id: Fund, to_account_id: Deposit, subcategory_id: null, is_planned: false, bucket_override_id: null, note: null }],
+      ["2026-03-10T10:00", { kind: "adjustment", amount: -2500, account_id: Bank, to_account_id: null, subcategory_id: null, is_planned: false, bucket_override_id: null, note: null }],
+      // Planned: listed and counted, but not summed (BR-7).
+      ["2026-03-31T23:00", { kind: "expense", amount: 1500000, account_id: Bank, to_account_id: null, subcategory_id: Rickshaw, is_planned: true, bucket_override_id: null, note: null }],
+      ["2026-04-01T00:00", { kind: "expense", amount: 9900, account_id: Bank, to_account_id: null, subcategory_id: Rickshaw, is_planned: false, bucket_override_id: null, note: "April" }],
+    ];
+    for (const [when, entry] of entries) {
+      const occurred_at = new Date(`${when}:00+05:30`).toISOString();
+      const [row] = await as(USER, () =>
+        rows<{ id: string }>(
+          `insert into transactions (kind, amount, account_id, to_account_id, subcategory_id, is_planned, bucket_override_id, note, occurred_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
+          [entry.kind, entry.amount, entry.account_id, entry.to_account_id, entry.subcategory_id, entry.is_planned, entry.bucket_override_id, entry.note, occurred_at],
+        ),
+      );
+      transactions.push({ ...entry, id: row.id, occurred_at });
+    }
+  });
+
+  const idsWhere = (keep: (t: Transaction) => boolean) => transactions.filter(keep).map((t) => t.id);
+  const march = { since: istStartOf(MARCH.start).toISOString(), until: istStartOf(MARCH.end).toISOString() };
+
+  test("with no filters, finds everything and totals agree with periodTotals()", async () => {
+    expect(await search()).toEqual(transactions.map((t) => t.id));
+    const all: Period = { start: "2000-01-01", end: "2100-01-01" };
+    expect(await totals()).toEqual({
+      entries: transactions.length,
+      planned: 1,
+      ...periodTotals(transactions, accountsById, all),
+    });
+  });
+
+  test("a date range covers IST days, and its totals agree with periodTotals()", async () => {
+    const found = await search(march);
+    expect(found).toEqual(idsWhere((t) => periodContains(MARCH, t.occurred_at)));
+    expect(found).toHaveLength(12);
+    const expected = periodTotals(transactions, accountsById, MARCH);
+    expect(await totals(march)).toEqual({ entries: 12, planned: 1, ...expected });
+    // Spot checks, so a shared mistake in both can't pass unnoticed.
+    expect(expected).toEqual({
+      income: 6000100,
+      spending: 12000 + 45050 - 5000 + 250000 + 70000,
+      invested: 1000000,
+      withdrawn: 200000,
+    });
+  });
+
+  test("an account matches money out of it and into it", async () => {
+    expect(await search({ account: ids.Card })).toEqual(
+      idsWhere((t) => t.account_id === ids.Card || t.to_account_id === ids.Card),
+    );
+  });
+
+  test("filters by category, subcategory and kind", async () => {
+    const [{ id: food }] = await rows<{ id: string }>(
+      "select id from categories where user_id = $1 and name = 'Food'",
+      [USER],
+    );
+    expect(await search({ category: food })).toEqual(idsWhere((t) => t.subcategory_id === ids.Groceries));
+    expect(await search({ subcategory: ids.Rickshaw })).toEqual(idsWhere((t) => t.subcategory_id === ids.Rickshaw));
+    expect(await search({ kinds: ["expense", "refund"], ...march })).toEqual(
+      idsWhere((t) => (t.kind === "expense" || t.kind === "refund") && periodContains(MARCH, t.occurred_at)),
+    );
+  });
+
+  test("filters by the size of the amount", async () => {
+    expect(await search({ min_amount: 2500, max_amount: 12000 })).toEqual(
+      idsWhere((t) => Math.abs(t.amount) >= 2500 && Math.abs(t.amount) <= 12000),
+    );
+  });
+
+  test("searches notes and subcategory names, taking % and _ literally", async () => {
+    expect(await search({ search: "RICKSHAW" })).toEqual(idsWhere((t) => t.subcategory_id === ids.Rickshaw));
+    expect(await search({ search: "50%_off" })).toEqual([transactions[1].id]);
+    expect(await search({ search: "%" })).toEqual([transactions[1].id]);
+    // As a wildcard, _ would match the space in "Auto to".
+    expect(await search({ search: "auto_to" })).toEqual([]);
+  });
+
+  test("filters by tag", async () => {
+    const [tag] = await as(USER, () =>
+      rows<{ id: string }>("insert into tags (name) values ('Made-up Trip') returning id"),
+    );
+    for (const t of transactions.slice(1, 3)) {
+      await as(USER, () => rows("insert into transaction_tags (transaction_id, tag_id) values ($1, $2)", [t.id, tag.id]));
+    }
+    expect(await search({ tag: tag.id })).toEqual([transactions[1].id, transactions[2].id]);
+    expect((await totals({ tag: tag.id })).spending).toBe(12000 + 45050);
+  });
+
+  test("a bucket's totals agree with bucketActuals()", async () => {
+    const actuals = bucketActuals(transactions, rule, accountsById, MARCH);
+    for (const name of ["Needs", "Wants", "Savings"]) {
+      const bucket = ids[name];
+      const found = await totals({ bucket, ...march });
+      const net = name === "Savings" ? found.invested - found.withdrawn : found.spending;
+      expect(net).toBe(actuals.byBucket.get(bucket)!);
+    }
+    // The overridden gym session is in Needs, the other one in Wants.
+    const needs = await search({ bucket: ids.Needs, ...march });
+    expect(needs).toContain(transactions[4].id);
+    expect(needs).not.toContain(transactions[5].id);
+    expect(await search({ bucket: ids.Wants, subcategory: ids["Gym & training"] })).toEqual([transactions[5].id]);
+    // Savings holds transfers into and out of savings, not between two of them.
+    expect(await search({ bucket: ids.Savings })).toEqual([transactions[8].id, transactions[9].id]);
+  });
+
+  test("other users and signed-out visitors can't search this user's entries", async () => {
+    const seen = await as(OWNER, () => rows<{ user_id: string }>("select user_id from search_transactions()"));
+    expect(seen.every((r) => r.user_id === OWNER)).toBe(true);
+    const [other] = await as(OWNER, () => rows<{ entries: number }>("select entries from transaction_totals(account => $1)", [ids.Bank]));
+    expect(Number(other.entries)).toBe(0);
+    await expect(as(null, () => rows("select * from search_transactions()"))).rejects.toThrow(/permission denied/);
+    await expect(as(null, () => rows("select * from transaction_totals()"))).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("merging", () => {
+  const USER = "00000000-0000-4000-8000-000000000005";
+  let bank: string;
+
+  beforeAll(async () => {
+    await db.query("insert into auth.users (id, email) values ($1, 'fifth@example.com')", [USER]);
+    bank = await makeAccount(USER, "Bank");
+  });
+
+  const spend = async (subcategory: string, amount = 10000) => {
+    const [row] = await as(USER, () =>
+      rows<{ id: string }>(
+        `insert into transactions (kind, amount, account_id, subcategory_id, occurred_at)
+         values ('expense', $1, $2, $3, now()) returning id`,
+        [amount, bank, subcategory],
+      ),
+    );
+    return row.id;
+  };
+  const subcategoryOf = async (transaction: string) =>
+    (await rows<{ subcategory_id: string }>("select subcategory_id from transactions where id = $1", [transaction]))[0]
+      .subcategory_id;
+  const exists = async (table: string, id: string) =>
+    (await rows(`select 1 from ${table} where id = $1`, [id])).length === 1;
+  const merge = (fn: string, source: string, target: string) =>
+    as(USER, () => rows(`select public.${fn}($1, $2)`, [source, target]));
+
+  test("merging a subcategory moves its entries and commitments, then deletes it (FR-4 AC2)", async () => {
+    const junk = await subcategoryId(USER, "Junk & treats");
+    const eatingOut = await subcategoryId(USER, "Eating out");
+    const entries = [await spend(junk), await spend(junk, 25000)];
+    const kept = await spend(eatingOut);
+    const [commitment] = await as(USER, () =>
+      rows<{ id: string }>(
+        `insert into recurring_commitments (name, kind, amount, account_id, subcategory_id, unit, first_due_on)
+         values ('Weekly treat', 'expense', 20000, $1, $2, 'week', '2026-03-01') returning id`,
+        [bank, junk],
+      ),
+    );
+
+    await merge("merge_subcategory", junk, eatingOut);
+
+    for (const id of [...entries, kept]) expect(await subcategoryOf(id)).toBe(eatingOut);
+    const [moved] = await rows<{ subcategory_id: string }>(
+      "select subcategory_id from recurring_commitments where id = $1",
+      [commitment.id],
+    );
+    expect(moved.subcategory_id).toBe(eatingOut);
+    expect(await exists("subcategories", junk)).toBe(false);
+    const [{ n }] = await rows<{ n: number }>(
+      "select count(*)::int as n from bucket_assignments where subcategory_id = $1",
+      [junk],
+    );
+    expect(n).toBe(0);
+  });
+
+  test("won't merge across kinds, into itself, or Lost Track away", async () => {
+    const groceries = await subcategoryId(USER, "Groceries");
+    const salary = await subcategoryId(USER, "Salary");
+    const lostTrack = await subcategoryId(USER, "Lost Track");
+    await expect(merge("merge_subcategory", groceries, salary)).rejects.toThrow(/same kind/);
+    await expect(merge("merge_subcategory", groceries, groceries)).rejects.toThrow(/into itself/);
+    await expect(merge("merge_subcategory", lostTrack, groceries)).rejects.toThrow(/system subcategory/);
+    // Lost Track can take others in.
+    await merge("merge_subcategory", await subcategoryId(USER, "Healthy food"), lostTrack);
+  });
+
+  test("won't touch another user's subcategories", async () => {
+    const mine = await subcategoryId(USER, "Rickshaw");
+    const theirs = await subcategoryId(OWNER, "Bus");
+    await expect(merge("merge_subcategory", theirs, mine)).rejects.toThrow(/not found/);
+    await expect(merge("merge_subcategory", mine, theirs)).rejects.toThrow(/not found/);
+    expect(await exists("subcategories", theirs)).toBe(true);
+    await expect(as(null, () => rows("select public.merge_subcategory($1, $2)", [mine, theirs]))).rejects.toThrow(
+      /permission denied/,
+    );
+  });
+
+  test("merging a category moves its subcategories and merges ones with the same name", async () => {
+    const category = async (name: string) =>
+      (await rows<{ id: string }>("select id from categories where user_id = $1 and name = $2", [USER, name]))[0].id;
+    const fun = await category("Fun & Travel");
+    const personal = await category("Personal");
+    // Personal and Fun & Travel both get a "Games & sports".
+    const [{ id: personalGames }] = await as(USER, () =>
+      rows<{ id: string }>(
+        "insert into subcategories (category_id, kind, name) values ($1, 'expense', 'games & SPORTS') returning id",
+        [personal],
+      ),
+    );
+    const funGames = await subcategoryId(USER, "Games & sports");
+    const trips = await subcategoryId(USER, "Trips");
+    const game = await spend(funGames);
+
+    await merge("merge_category", fun, personal);
+
+    expect(await exists("categories", fun)).toBe(false);
+    expect(await subcategoryOf(game)).toBe(personalGames);
+    const moved = await rows<{ category_id: string }>("select category_id from subcategories where id = $1", [trips]);
+    expect(moved[0].category_id).toBe(personal);
+    const [{ n }] = await rows<{ n: number }>(
+      "select count(*)::int as n from subcategories where category_id = $1 and lower(name) = 'games & sports'",
+      [personal],
+    );
+    expect(n).toBe(1);
+    const salaryCategory = await category("Salary");
+    await expect(merge("merge_category", salaryCategory, personal)).rejects.toThrow(/same kind/);
   });
 });
 
