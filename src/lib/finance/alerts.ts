@@ -15,6 +15,12 @@ export const MIN_ALERT = 100000; // ₹1,000
 // A price rise costing at least this much more a year.
 export const MIN_PRICE_ALERT = 50000; // ₹500
 
+// Running hot by enough to matter: more than 20% ahead of pace, and at least
+// MIN_ALERT ahead. Screens go red on the same rule the alerts use.
+export function hotEnough(pace: Pace): boolean {
+  return pace.runningHot && pace.spent - pace.expected >= MIN_ALERT;
+}
+
 export type Alert =
   // INS-04: spending ahead of pace. categoryId is null for total spending.
   // Impact: spent − expected by today.
@@ -49,7 +55,7 @@ export function alerts(sources: AlertSources): Alert[] {
   };
   if (sources.pace?.ready) {
     const { total, byCategory: paces } = sources.pace;
-    if (total.runningHot && total.spent - total.expected >= MIN_ALERT) {
+    if (hotEnough(total)) {
       found.push({ kind: "pace", categoryId: null, pace: total, impact: total.spent - total.expected });
     }
     for (const [categoryId, pace] of paces) {

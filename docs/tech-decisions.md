@@ -160,6 +160,7 @@ Add a new entry when a decision is made, with the date and the reason.
     - **Alerts (INS-19) have minimums:** ₹1,000 ahead of pace, above usual or over a target, and ₹500 a year for a price rise. Price alerts are for payments the owner set up only; detected series such as groceries change price all the time. The insights still show the smaller figures.
     - **Committed vs free (INS-01) is one sentence on Insights**, not a card on Home, where available to spend already answers the question.
     - **Small spends (INS-06) cover the last 30 days**, so the figure is a full month's worth on any day.
+  - **Every figure can be explained and opened** (owner, 2026-09-29): each insight shows what it compares against (a usual month's ₹, where a bucket is heading and why), and each row opens the matching entries on the Entries screen. Savings are charted in rupees, with each month's income and spending listed; a rate below -100% isn't shown. Screens go red on the same ₹1,000 rule as alerts (`hotEnough()`), and money owed (card dues, loans) is red.
   - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8). On screen, commitments and one-off planned entries are both "planned payments" (TD-18).
 - **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
 

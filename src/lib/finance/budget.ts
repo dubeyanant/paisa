@@ -116,6 +116,10 @@ export type BucketAdherence = {
   // its target, and never over. Where the month is heading: planned payments
   // in full, paid or not, and everyday spending at its pace so far.
   status: BucketStatus;
+  // Planned payments in this bucket still to pay this month, and where the
+  // month is heading (what status goes by).
+  plannedLeft: number;
+  projected: number;
   // Complete months off target in a row just before this one, plus this one if
   // it's already over: "3rd month over".
   streak: number;
@@ -180,8 +184,8 @@ export function budgetAdherence(
     const target = now.targets.get(bucket.id)!;
     const actual = now.actuals.byBucket.get(bucket.id)!;
     const paid = plannedPaid.get(bucket.id) ?? 0;
-    const projected =
-      paid + (plannedLeft.get(bucket.id) ?? 0) + Math.round(((actual - paid) * length) / Math.max(elapsed, 1));
+    const left = plannedLeft.get(bucket.id) ?? 0;
+    const projected = paid + left + Math.round(((actual - paid) * length) / Math.max(elapsed, 1));
     const status: BucketStatus = bucket.holds_savings
       ? projected >= target
         ? "on_track"
@@ -207,6 +211,8 @@ export function budgetAdherence(
       remaining: target - actual,
       shareOfBase: now.base > 0 ? actual / now.base : null,
       status,
+      plannedLeft: left,
+      projected,
       streak,
       history,
     };

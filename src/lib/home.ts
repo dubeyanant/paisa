@@ -4,7 +4,7 @@
 
 import { streakLabel } from "@/lib/budget";
 import { filtersQuery } from "@/lib/entry-filters";
-import type { Alert } from "@/lib/finance/alerts";
+import { hotEnough, type Alert } from "@/lib/finance/alerts";
 import type { Period } from "@/lib/finance/dates";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type { Pace, Ready, SavingsMonth } from "@/lib/finance/insights";
@@ -104,10 +104,10 @@ export function paceText(
     const months = pace.monthsToGo === 1 ? "month" : "months";
     return { figure: "–", text: `Shows after ${pace.monthsToGo} more ${months} of entries.`, hot: false };
   }
-  const { spent, expected, shareOfTypical, runningHot } = pace.total;
+  const { spent, expected, shareOfTypical } = pace.total;
   return {
     figure: shareOfTypical === null ? "–" : percent(shareOfTypical),
     text: `Day ${pace.day}: ${formatINR(spent)} spent. A usual month has ${formatINR(expected)} by now.`,
-    hot: runningHot,
+    hot: hotEnough(pace.total),
   };
 }

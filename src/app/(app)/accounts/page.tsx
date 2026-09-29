@@ -22,11 +22,11 @@ export default async function AccountsPage() {
     { label: "Bank and cash", hint: "What the accounts hold", value: summary.available },
     { label: "Planned", hint: `Still to pay by ${dayInSentence(addDays(month.end, -1), today)}`, value: summary.planned },
     { label: "Set aside", hint: "Sinking funds", value: summary.setAside },
-    { label: "Card dues", hint: "Owed on cards", value: summary.cardDues },
+    { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, owed: true },
     { label: "Card credit", hint: "In your favour", value: summary.cardCredit },
     { label: "Savings", hint: "Savings and investments", value: summary.savings },
     { label: "Deposits", hint: "Comes back later", value: summary.deposits },
-    { label: "Loans", hint: "Still owed", value: summary.loansOwed },
+    { label: "Loans", hint: "Still owed", value: summary.loansOwed, owed: true },
     { label: "Net position", hint: "All you have, minus all you owe", value: summary.netPosition },
   ].filter((t) => t.value !== 0);
 
@@ -52,7 +52,8 @@ export default async function AccountsPage() {
           {tiles.map((tile) => (
             <div key={tile.label} className="min-w-0">
               <dt className="text-sm text-muted">{tile.label}</dt>
-              <dd className="mt-0.5 truncate text-lg font-medium tabular-nums">
+              {/* Money owed is shown in red, like a negative balance. */}
+              <dd className={`mt-0.5 truncate text-lg font-medium tabular-nums ${"owed" in tile ? "text-negative" : ""}`}>
                 <Amount value={tile.value} />
               </dd>
               <dd className="text-xs text-muted">{tile.hint}</dd>

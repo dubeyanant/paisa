@@ -59,6 +59,11 @@ test("INS-02 savings rate, finished months only", () => {
   );
   expect(savingsHeadline([month(sep, 0, 100)])).toBe("No income last month, so there's no savings rate.");
   expect(savingsHeadline([])).toBe("Shows once your first month is over.");
+  // Little income recorded: no -7,500% rates.
+  expect(savingsHeadline([month(aug, 10000, 760000)])).toBe("You spent ₹7,500 more than you earned last month.");
+  expect(savingsHeadline([month(aug, 10000, 760000), month(sep, 6000000, 4500000)])).toBe(
+    "You saved 25% last month (₹15,000).",
+  );
 });
 
 test("INS-03 emergency fund", () => {
@@ -170,11 +175,13 @@ test("INS-17 budget", () => {
     remaining,
     shareOfBase: (1800000 - remaining) / 6000000,
     status,
+    plannedLeft: 0,
+    projected: 1800000 - remaining,
     streak,
     history: [],
   });
   expect(budgetHeadline([bucket("Needs", "at_risk", 100), bucket("Wants", "over", -360000, 3)])).toBe(
-    "Wants at 36% vs 30% target. 3rd month over.",
+    "Wants at 36% vs 30% target. Over for the 3rd month running.",
   );
   expect(budgetHeadline([bucket("Needs", "on_track", 100)])).toBe("Every bucket is on track this month.");
 });

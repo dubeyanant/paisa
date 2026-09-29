@@ -70,6 +70,8 @@ describe("alertText", () => {
         target: 1800000,
         actual: 2160000,
         remaining: -360000,
+        plannedLeft: 0,
+        projected: 2160000,
         shareOfBase: 0.36,
         status: "over",
         streak: 3,
@@ -77,7 +79,7 @@ describe("alertText", () => {
       },
       impact: 360000,
     };
-    expect(alertText(alert, names, ctx).detail).toBe("₹21,600 spent of ₹18,000. 3rd month over.");
+    expect(alertText(alert, names, ctx).detail).toBe("₹21,600 spent of ₹18,000. Over for the 3rd month running.");
   });
 
   test("an overdue payment", () => {

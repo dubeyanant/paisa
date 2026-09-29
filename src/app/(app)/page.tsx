@@ -74,8 +74,8 @@ export default async function Home() {
                 </div>
                 <div className="min-w-0">
                   <dt className="text-sm text-muted">Card dues</dt>
-                  <dd className="truncate font-medium tabular-nums">
-                    <Amount value={summary.cardDues} />
+                  <dd className={`truncate font-medium tabular-nums ${summary.cardDues > 0 ? "text-negative" : ""}`}>
+                    {formatINR(summary.cardDues)}
                   </dd>
                 </div>
                 {summary.setAside !== 0 && (
