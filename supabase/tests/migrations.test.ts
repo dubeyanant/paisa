@@ -803,6 +803,163 @@ describe("save_budget_rule", () => {
   });
 });
 
+describe("funds", () => {
+  const USER = "00000000-0000-4000-8000-000000000008";
+  let bank: string;
+  let clothing: string;
+  let wants: string;
+
+  beforeAll(async () => {
+    await db.query("insert into auth.users (id, email) values ($1, 'eighth@example.com')", [USER]);
+    bank = await makeAccount(USER, "Bank");
+    clothing = await subcategoryId(USER, "Clothing & shoes");
+    [{ id: wants }] = await rows<{ id: string }>(
+      "select b.id from budget_buckets b join budget_rules r on r.id = b.rule_id where r.user_id = $1 and b.name = 'Wants'",
+      [USER],
+    );
+  });
+
+  const fund = (values: Record<string, unknown>, userId: string | null = USER) =>
+    as(userId, async () => {
+      const cols = Object.keys(values);
+      const [row] = await rows<{ id: string }>(
+        `insert into funds (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning id`,
+        Object.values(values),
+      );
+      return row.id;
+    });
+  const spend = (values: Record<string, unknown>) =>
+    as(USER, () => {
+      const cols = ["kind", "amount", "account_id", "subcategory_id", "occurred_at", ...Object.keys(values)];
+      return rows<{ id: string }>(
+        `insert into transactions (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning id`,
+        ["expense", 250000, bank, clothing, new Date().toISOString(), ...Object.values(values)],
+      );
+    });
+
+  test("a goal needs a target and a last month; an ongoing fund needs neither", async () => {
+    const phone = await fund({ name: "Phone", kind: "goal", target: 6000000, schedule_from: "2026-10-01", ends_on: "2027-01-01", bucket_id: wants });
+    expect(phone).toBeString();
+    await fund({ name: "Clothes", kind: "ongoing", monthly_amount: 200000, cap: 1500000, schedule_from: "2026-10-01" });
+    await expect(fund({ name: "No target", kind: "goal", schedule_from: "2026-10-01", ends_on: "2027-01-01" })).rejects.toThrow(/check/);
+    await expect(fund({ name: "No end", kind: "goal", target: 100, schedule_from: "2026-10-01" })).rejects.toThrow(/check/);
+    await expect(
+      fund({ name: "Backwards", kind: "goal", target: 100, schedule_from: "2026-10-01", ends_on: "2026-09-01" }),
+    ).rejects.toThrow(/check/);
+    await expect(
+      fund({ name: "Monthly goal", kind: "goal", target: 100, monthly_amount: 50, schedule_from: "2026-10-01", ends_on: "2027-01-01" }),
+    ).rejects.toThrow(/check/);
+    await expect(fund({ name: "Ends", kind: "ongoing", schedule_from: "2026-10-01", ends_on: "2027-01-01" })).rejects.toThrow(/check/);
+  });
+
+  test("only expenses and refunds that have happened can be paid from a fund", async () => {
+    const trips = await fund({ name: "Trips", kind: "ongoing", schedule_from: "2026-10-01" });
+    await spend({ fund_id: trips });
+    await expect(spend({ fund_id: trips, is_planned: true })).rejects.toThrow(/transactions_fund_check/);
+    await expect(
+      as(USER, () =>
+        rows("insert into transactions (kind, amount, account_id, occurred_at, fund_id) values ('adjustment', 100, $1, now(), $2)", [
+          bank,
+          trips,
+        ]),
+      ),
+    ).rejects.toThrow(/transactions_fund_check/);
+  });
+
+  test("a fund with spends can't be deleted; one without goes with its moves", async () => {
+    const used = await fund({ name: "Used", kind: "ongoing", schedule_from: "2026-10-01" });
+    await spend({ fund_id: used });
+    await expect(as(USER, () => rows("delete from funds where id = $1", [used]))).rejects.toThrow(/foreign key/);
+
+    const unused = await fund({ name: "Unused", kind: "ongoing", schedule_from: "2026-10-01" });
+    await as(USER, () => rows("insert into fund_moves (fund_id, amount, occurred_at) values ($1, 500000, now())", [unused]));
+    await expect(as(USER, () => rows("insert into fund_moves (fund_id, amount, occurred_at) values ($1, 0, now())", [unused]))).rejects.toThrow(
+      /check/,
+    );
+    await as(USER, () => rows("delete from funds where id = $1", [unused]));
+    expect(await rows("select * from fund_moves where fund_id = $1", [unused])).toEqual([]);
+  });
+
+  test("only the owner can see or use their funds", async () => {
+    const mine = await fund({ name: "Mine", kind: "ongoing", schedule_from: "2026-10-01" });
+    expect(await as(OWNER, () => rows("select * from funds where id = $1", [mine]))).toEqual([]);
+    await expect(fund({ name: "Theirs", kind: "ongoing", schedule_from: "2026-10-01", user_id: USER }, OWNER)).rejects.toThrow(
+      /row-level security/,
+    );
+    await expect(
+      as(OWNER, () => rows("insert into fund_moves (fund_id, amount, occurred_at) values ($1, 100, now())", [mine])),
+    ).rejects.toThrow(/foreign key/);
+    const ownerBank = await makeAccount(OWNER, "Owner fund bank");
+    const ownerSub = await subcategoryId(OWNER, "Clothing & shoes");
+    await expect(
+      as(OWNER, () =>
+        rows("insert into transactions (kind, amount, account_id, subcategory_id, occurred_at, fund_id) values ('expense', 100, $1, $2, now(), $3)", [
+          ownerBank,
+          ownerSub,
+          mine,
+        ]),
+      ),
+    ).rejects.toThrow(/foreign key/);
+    await expect(as(null, () => rows("select * from funds"))).rejects.toThrow(/permission denied/);
+  });
+
+  test("update_fund changes a fund and keeps its finished months, all at once", async () => {
+    const goal = await fund({ name: "Laptop", kind: "goal", target: 9000000, schedule_from: "2026-08-01", ends_on: "2026-12-01" });
+    const update = (id: string, userId: string | null = USER, endsOn = "2027-02-01") =>
+      as(userId, () =>
+        rows("select public.update_fund($1, 'Laptop', null, 12000000, null, null, '2026-10-01', $2, false, $3)", [
+          id,
+          endsOn,
+          JSON.stringify([
+            { amount: 1800000, occurred_at: "2026-07-31T18:30:00Z" },
+            { amount: 1800000, occurred_at: "2026-08-31T18:30:00Z" },
+          ]),
+        ]),
+      );
+    await update(goal);
+    const [row] = await rows("select target, schedule_from::text, ends_on::text, closes_when_spent from funds where id = $1", [goal]);
+    expect(row).toEqual({ target: 12000000, schedule_from: "2026-10-01", ends_on: "2027-02-01", closes_when_spent: false });
+    const kept = await rows("select amount, is_monthly from fund_moves where fund_id = $1 order by occurred_at", [goal]);
+    expect(kept).toEqual([
+      { amount: 1800000, is_monthly: true },
+      { amount: 1800000, is_monthly: true },
+    ]);
+
+    // All or nothing: an end before the new start fails, and nothing is kept.
+    await expect(update(goal, USER, "2026-09-01")).rejects.toThrow(/check/);
+    expect(await rows("select * from fund_moves where fund_id = $1", [goal])).toHaveLength(2);
+
+    // Another user's fund, a closed fund, or no one signed in: nothing changes.
+    await expect(update(goal, OWNER)).rejects.toThrow(/not found/);
+    await expect(update(goal, null)).rejects.toThrow(/permission denied/);
+    await as(USER, () => rows("update funds set closed_at = now() where id = $1", [goal]));
+    await expect(update(goal)).rejects.toThrow(/not found/);
+  });
+
+  test("a removed budget bucket hands its funds to the bucket that takes its subcategories", async () => {
+    const trip = await fund({ name: "Big trip", kind: "ongoing", schedule_from: "2026-10-01", bucket_id: wants });
+    const [rule] = await rows<{ id: string }>("select id from budget_rules where user_id = $1", [USER]);
+    const buckets = await rows<{ id: string; name: string; share_bp: number; holds_savings: boolean }>(
+      "select id, name, share_bp, holds_savings from budget_buckets where rule_id = $1 order by sort_order",
+      [rule.id],
+    );
+    const needs = buckets.find((b) => b.name === "Needs")!;
+    const savings = buckets.find((b) => b.name === "Savings")!;
+    await as(USER, () =>
+      rows("select public.save_budget_rule($1, 'Two', 'income', null, $2, $3)", [
+        rule.id,
+        JSON.stringify([
+          { key: needs.id, id: needs.id, name: "Needs", share_bp: 8000, holds_savings: false },
+          { key: savings.id, id: savings.id, name: "Savings", share_bp: 2000, holds_savings: true },
+        ]),
+        JSON.stringify({ [wants]: needs.id }),
+      ]),
+    );
+    const [{ bucket_id }] = await rows<{ bucket_id: string }>("select bucket_id from funds where id = $1", [trip]);
+    expect(bucket_id).toBe(needs.id);
+  });
+});
+
 describe("Lost Track", () => {
   test("can be renamed but not deleted", async () => {
     const id = await subcategoryId(OWNER, "Lost Track");
