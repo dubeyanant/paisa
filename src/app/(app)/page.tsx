@@ -33,23 +33,24 @@ export default async function Home() {
         <Link href="/accounts" className="block rounded-2xl lg:sticky lg:top-8">
           <Card className="p-4 transition-colors hover:bg-foreground/[0.03] md:p-6">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted">Available in bank and cash</p>
+              <p className="text-sm text-muted">Available to spend</p>
               <ChevronRightIcon className="-mr-1 size-5 text-muted" />
             </div>
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-              <Amount value={summary.available} />
+              <Amount value={summary.spendable} />
             </p>
+            <p className="mt-1 text-sm text-muted">Bank and cash, minus blocked money and card dues.</p>
             <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
+              <div className="min-w-0">
+                <dt className="text-sm text-muted">Blocked</dt>
+                <dd className="truncate font-medium tabular-nums">
+                  <Amount value={summary.blocked} />
+                </dd>
+              </div>
               <div className="min-w-0">
                 <dt className="text-sm text-muted">Card dues</dt>
                 <dd className="truncate font-medium tabular-nums">
                   <Amount value={summary.cardDues} />
-                </dd>
-              </div>
-              <div className="min-w-0">
-                <dt className="text-sm text-muted">Net position</dt>
-                <dd className="truncate font-medium tabular-nums">
-                  <Amount value={summary.netPosition} />
                 </dd>
               </div>
             </dl>

@@ -13,6 +13,8 @@ export type AccountWithBalance = {
   statement_day: number | null;
   due_day: number | null;
   is_emergency_fund: boolean;
+  // Money set aside for bills and planned spending (TD-18).
+  is_blocked: boolean;
   archived_at: string | null;
   // Opening balance plus every confirmed transaction, from the
   // account_balances view (same rules as accountBalances()).
@@ -24,7 +26,7 @@ export function isUuid(value: string) {
 }
 
 const COLUMNS =
-  "id, name, type, opening_balance, opening_date, statement_day, due_day, is_emergency_fund, archived_at";
+  "id, name, type, opening_balance, opening_date, statement_day, due_day, is_emergency_fund, is_blocked, archived_at";
 
 // Every account, archived ones included, with its current balance.
 export async function listAccounts(): Promise<AccountWithBalance[]> {
