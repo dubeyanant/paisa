@@ -18,7 +18,15 @@ export type SubcategoryOption = {
   hidden: boolean;
 };
 
-export type Entry = RecentEntry & { id: string; description: string | null; is_planned: boolean };
+export type Entry = RecentEntry & {
+  id: string;
+  description: string | null;
+  is_planned: boolean;
+  // Only when opened on its own, to edit or copy.
+  tag_ids?: string[];
+};
+
+export type TagOption = { id: string; name: string; starts_on: string | null; ends_on: string | null };
 
 export type EntryContext = {
   // In the Accounts screen's order. Archived ones are only for showing old entries.
@@ -27,6 +35,8 @@ export type EntryContext = {
   subcategories: SubcategoryOption[];
   // The latest entries up to now, newest first, for suggestions.
   recent: RecentEntry[];
+  // Newest first.
+  tags: TagOption[];
 };
 
 const ENTRY_COLUMNS =
@@ -38,7 +48,7 @@ const SUGGESTION_WINDOW = 1000;
 export async function getEntryContext(): Promise<EntryContext> {
   await requireUser();
   const supabase = await createClient();
-  const [labels, recent] = await Promise.all([
+  const [labels, recent, tags] = await Promise.all([
     getLabels(),
     supabase
       .from("transactions")
@@ -47,13 +57,19 @@ export async function getEntryContext(): Promise<EntryContext> {
       .lte("occurred_at", new Date().toISOString())
       .order("occurred_at", { ascending: false })
       .limit(SUGGESTION_WINDOW),
+    supabase.from("tags").select("id, name, starts_on, ends_on").order("created_at", { ascending: false }),
   ]);
   if (recent.error) throw recent.error;
-  return { ...labels, recent: recent.data.map((t) => ({ ...(t as RecentEntry), amount: Number(t.amount) })) };
+  if (tags.error) throw tags.error;
+  return {
+    ...labels,
+    recent: recent.data.map((t) => ({ ...(t as RecentEntry), amount: Number(t.amount) })),
+    tags: tags.data,
+  };
 }
 
 // Every account and subcategory, to name entries and offer choices.
-export async function getLabels(): Promise<Omit<EntryContext, "recent">> {
+export async function getLabels(): Promise<Omit<EntryContext, "recent" | "tags">> {
   await requireUser();
   const supabase = await createClient();
   const [accounts, categories, subcategories] = await Promise.all([
@@ -115,10 +131,15 @@ export async function getEntry(id: string): Promise<Entry> {
   await requireUser();
   if (!isUuid(id)) notFound();
   const supabase = await createClient();
-  const { data, error } = await supabase.from("transactions").select(ENTRY_COLUMNS).eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(`${ENTRY_COLUMNS}, transaction_tags(tag_id)`)
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw error;
   if (!data) notFound();
-  return toEntry(data);
+  const { transaction_tags, ...row } = data as Record<string, unknown> & { transaction_tags: { tag_id: string }[] };
+  return { ...toEntry(row), tag_ids: transaction_tags.map((t) => t.tag_id) };
 }
 
 export type EntryTotals = {
@@ -161,6 +182,20 @@ export async function getEntryTotals(filters: EntryFilters): Promise<EntryTotals
     invested: Number(row.invested),
     withdrawn: Number(row.withdrawn),
   };
+}
+
+// Entries in a tag's dates that don't carry it yet, to suggest tagging them
+// (FR-5). Balance corrections aren't suggested.
+export async function getTagSuggestions(tagId: string, from: string, to: string): Promise<Entry[]> {
+  await requireUser();
+  const supabase = await createClient();
+  const [entries, tagged] = await Promise.all([
+    searchEntries({ from, to }, 300),
+    supabase.from("transaction_tags").select("transaction_id").eq("tag_id", tagId).limit(1000),
+  ]);
+  if (tagged.error) throw tagged.error;
+  const done = new Set(tagged.data.map((t) => t.transaction_id));
+  return entries.filter((e) => e.kind !== "adjustment" && !done.has(e.id));
 }
 
 export type FilterOptions = {

@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 6 started).
+Last updated: 2026-09-29 (step 6 built, waiting to merge).
 
 ## Phase 1: replace the old app
 
@@ -14,9 +14,9 @@ Last updated: 2026-09-29 (step 6 started).
 | 3 | Core database schema, owner-only RLS, default categories | Done | PRs #3 and #5, TD-13 |
 | 4 | Calculation library: money, IST dates, balances, totals, budgets | Done | PR #4, `src/lib/finance/` |
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
-| 6 | **Transaction list, category management, tags (FR-4, FR-5, FR-8.3)** | **In progress** | 6a (PR #12): search and merge functions, TD-15. 6b: Entries screen, balance corrections |
+| 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Built; merge PRs #12, #13, #14 in that order | TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
-| 8 | Recurring commitments and budget rules (FR-6, FR-7) | Logic done, screens to do | `src/lib/finance/`, TD-16 |
+| 8 | **Recurring commitments and budget rules (FR-6, FR-7)** | **Next**: logic done, screens to do | `src/lib/finance/`, TD-16 |
 | 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
@@ -29,19 +29,23 @@ step 5 on works against real data from day one.
 
 ## Step 6 in detail
 
-Step 6 ships in three parts. **6a** adds the database functions the others use, and merges
-first, because a preview can't run code whose migration hasn't run yet (TD-3). **6b** is the
-Entries screen and balance corrections. **6c** is categories and tags.
+Step 6 ships in three stacked PRs, merged in order. The migration goes first, because a
+preview can't run code whose migration hasn't run yet (TD-3).
 
-- **Transaction list (FR-8.3).** Every entry, not just the latest on Home, with search
-  and filters. Tapping one opens the edit screen that step 5 built (`/entries/[id]`).
-- **Categories (FR-4).** Add, rename, hide and merge subcategories, and move them
-  between budget buckets (TD-13).
-- **Tags (FR-5).** Create tags and add them on the Add screen, which step 5 left out.
-- **Left over from step 5:** balance corrections (adjustments) can be listed but not
-  yet made or deleted in the app. An entries tab goes in the bottom bar, which puts Add
-  in the middle. *(6b: a correction is made from the account's screen and deleted from
-  its entry.)*
+- **6a (#12): database functions.** Search and totals for the Entries screen, and
+  all-or-nothing merges (TD-15).
+- **6b (#13): Entries screen (FR-8.3).** Search and filters by dates, kind, account,
+  category, bucket, tag and amount, with totals over every match. The tab bar gets Entries
+  with Add in the middle. Balance corrections are made from an account's screen and
+  deleted from their own entry.
+- **6c (#14): categories and tags (FR-4, FR-5).** More → Categories adds, renames, hides,
+  reorders, moves and merges categories and subcategories, and sets each one's bucket.
+  More → Tags creates tags with optional dates, and suggests untagged entries from those
+  dates. The Add and edit screens take tags, and suggest a dated tag for an entry in its
+  range; nothing is tagged until the owner taps it.
+
+The tag report (INS-13) comes with the insights in step 9. Until then, a tag's screen
+and the Entries screen filtered by that tag show its total.
 
 ## Later
 
