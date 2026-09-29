@@ -68,12 +68,36 @@ describe("balance summary", () => {
     ]);
     expect(balanceSummary(accounts, balances)).toEqual({
       available: 5050000,
+      blocked: 0,
       cardDues: 1234567,
       cardCredit: 0,
       savings: 2500000,
       deposits: 0,
       loansOwed: 0,
       netPosition: 5050000 + 2500000 - 1234567,
+      spendable: 5050000 - 1234567,
+    });
+  });
+
+  test("blocked money counts as owned, but not as free to spend", () => {
+    const accounts = [
+      account("bank", "bank"),
+      { ...account("blocked", "wallet"), is_blocked: true },
+      { ...account("trip-fund", "wallet"), is_blocked: true },
+      account("card", "credit_card"),
+    ];
+    const balances = new Map([
+      ["bank", 11500000],
+      ["blocked", 2500000],
+      ["trip-fund", 1000000],
+      ["card", -500000],
+    ]);
+    expect(balanceSummary(accounts, balances)).toMatchObject({
+      available: 15000000,
+      blocked: 3500000,
+      cardDues: 500000,
+      spendable: 15000000 - 3500000 - 500000,
+      netPosition: 15000000 - 500000,
     });
   });
 

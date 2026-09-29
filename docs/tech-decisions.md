@@ -163,6 +163,15 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Phone and laptop (owner, 2026-09-29):** what's used day to day works fully on a phone (adding, entries, balances, free money, budget status, alerts), and every insight keeps its headline and figure there. A chart or table too wide or dense for a phone, such as a multi-series trend or a month-by-category table, can be laptop-only. The phone then shows a compact stand-in, such as the top few items, with a note that the full view is on a larger screen.
 - **Why:** Recharts draws SVG, so it takes colours from CSS variables and resizes to fit a phone or a laptop (NFR-1). It covers every chart the insights need (bars, stacked bars, lines, areas, donuts) with little code, and supports React 19. Chart.js draws on a canvas, which can't read CSS variables; ECharts is much larger; visx and D3 need far more code for each chart.
 
+### TD-18 Blocked money and "available to spend"
+- **Date:** 2026-09-29
+- **Decision:**
+  - A bank or wallet account can be marked **blocked** (`accounts.is_blocked`). It holds money already set aside for bills and planned spending, such as a "Blocked" wallet or sinking funds. It can't be spent on anything else.
+  - **Available to spend** = bank and cash − blocked − card dues. Home leads with it, next to Blocked and Card dues. On Accounts it leads too, and net position becomes one of the smaller figures.
+  - Blocked money still counts as owned in net position.
+  - The Accounts summary hides a figure that is ₹0, such as Loans with nothing owed.
+- **Why:** The owner already sets money aside by moving it into blocked accounts (planned Slice → Blocked transfers). Counting it as available overstates what can be spent, and so do unpaid card dues.
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.

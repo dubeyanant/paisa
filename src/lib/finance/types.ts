@@ -9,6 +9,8 @@ export type Account = {
   opening_balance: number;
   // Only the insights that need these read them (INS-03, INS-11).
   is_emergency_fund?: boolean;
+  // Bank or wallet money already set aside for bills and planned spending.
+  is_blocked?: boolean;
   statement_day?: number | null;
   due_day?: number | null;
 };
