@@ -22,6 +22,22 @@ export function istStartOf(date: string): Date {
   return new Date(Date.parse(`${date}T00:00:00Z`) - IST_OFFSET_MS);
 }
 
+// A moment as the value of an <input type="datetime-local"> in IST:
+// "YYYY-MM-DDTHH:mm".
+export function toIstDateTimeInput(moment: Date | string): string {
+  const ms = new Date(moment).getTime();
+  if (Number.isNaN(ms)) throw new Error(`Invalid moment: ${String(moment)}`);
+  return new Date(ms + IST_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+// The moment an IST "YYYY-MM-DDTHH:mm" value stands for, or null if it isn't one.
+export function fromIstDateTimeInput(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}:00+05:30`);
+  if (Number.isNaN(date.getTime()) || toIstDateTimeInput(date) !== value) return null;
+  return date;
+}
+
 export function addDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 }

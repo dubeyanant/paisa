@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { buttonClass, inputClass } from "@/components/ui";
 import { signIn } from "./actions";
-
-const inputClass =
-  "h-12 rounded-lg border border-zinc-300 bg-transparent px-3 text-base outline-none focus:border-zinc-900 dark:border-zinc-700 dark:focus:border-zinc-100";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(signIn, undefined);
@@ -34,14 +32,14 @@ export function LoginForm({ next }: { next: string }) {
         />
       </label>
       {state?.error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-negative">
           {state.error}
         </p>
       )}
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 h-12 rounded-lg bg-zinc-900 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+        className={`${buttonClass.primary} mt-2 h-12`}
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>

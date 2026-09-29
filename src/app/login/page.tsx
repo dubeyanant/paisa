@@ -14,7 +14,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex flex-1 flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <h1 className="text-3xl font-semibold tracking-tight">Paisa</h1>
-        <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-muted">
           Sign in to continue.
         </p>
         <LoginForm next={typeof next === "string" ? next : "/"} />

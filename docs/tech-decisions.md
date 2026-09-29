@@ -34,6 +34,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Nobody changes tables by hand in the dashboard or runs `db push`.
   - Merging to `main` changes the live database, so merge a migration only when it's ready.
   - Vercel and Supabase deploy from the same merge in no guaranteed order. A migration must not break the app version currently deployed: add first, remove later.
+  - Preview deployments use the production database, where a PR's own migration hasn't run yet. So a preview can't show code that needs that migration, and after the merge the new app may briefly run before the migration does. Ship a migration in its own PR, merged before the code that uses it, or make the code cope without it.
 - **Why:** Schema history lives in Git, and every change is reviewed in a PR.
 
 ### TD-4 Hosting and configuration: Vercel
@@ -119,15 +120,32 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Tests:** `supabase/tests/migrations.test.ts` runs every migration on an in-memory Postgres (PGlite) with a stand-in for Supabase's auth, then checks defaults, RLS and constraints. It runs in CI, because preview databases are off and a migration would otherwise run for the first time in production.
 - **Why:** These rules keep every figure exact and consistent (NFR-5), keep the data private (NFR-6), and make the flexibility in FR-4 and FR-7 possible without losing history.
 
+### TD-14 Installable, online only
+- **Date:** 2026-09-29
+- **Decision:**
+  - Paisa can be added to the home screen and opens like an app: a web app manifest (`src/app/manifest.ts`), icons and Apple home-screen tags. There is no service worker.
+  - It needs a connection. There's no offline mode and no queue of unsent entries. If a save fails, the form says so and keeps what was typed, so it can be sent again (the minimum NFR-4 allows).
+  - `src/proxy.ts` lets `/manifest.webmanifest` through signed out, because browsers fetch it without cookies.
+- **Why:** The owner is happy with an app that works online only. Caching signed-in pages for offline use is a lot of work for little gain. If entries ever get lost in practice, Next's experimental `useOffline` can keep a failed save pending and retry it when the connection returns.
+
+### TD-15 Whole-history sums run in the database
+- **Date:** 2026-09-29
+- **Decision:**
+  - A figure that needs every transaction, starting with account balances, comes from a SQL view (`account_balances`), not from loading every transaction into the app.
+  - Each view follows the same rules as `src/lib/finance/`, and `supabase/tests/migrations.test.ts` checks that both give the same figures.
+  - Views use `security_invoker`, so RLS still limits them to the owner's rows. They're granted to `authenticated` only.
+- **Why:** The owner already has thousands of entries, and the API returns at most 1,000 rows per request. Loading them all on every screen would be slow (NFR-3, NFR-8).
+
 ### TD-16 Recurring commitments and insights: pure functions
 - **Date:** 2026-09-29
-- **Decision:** Recurring commitments and the native insights are pure functions in `src/lib/finance/`, tested with `bun test`. Screens load rows and pass them in.
+- **Decision:** Recurring commitments and the native insights are pure functions in `src/lib/finance/`, tested with `bun test`. Screens load rows and pass them in. A figure that needs the whole history, such as a balance, comes from the database instead (TD-15).
   - **Due dates** come from each commitment's schedule (`recurring.ts`). A monthly due day missing from a month (the 31st) falls on its last day.
   - **Payments cover due dates in order:** the first linked payment (`recurring_id`) covers the first due date, and so on. Paying early or late still counts. A due date on or before today with no payment is a pending entry. A planned entry linked to a commitment covers its due date.
   - **Reserved money** is every unpaid due date and planned outgoing entry up to the end of the budget month, overdue ones included.
   - **Detection** (`detection.ts`) groups unlinked expenses by subcategory and note (transfers by their two accounts and note), and needs a regular gap (weekly, monthly, every 3 or 6 months, yearly), amounts within half of each other, and a recent payment. It offers a series after 3 payments; INS-09 lists one after 2.
   - **"Min data"** in BRD §9 counts budget months including the current one. Until there's enough, an insight returns `{ ready: false, monthsToGo }`.
   - **INS-19** ranks the flags from INS-04, 05, 09, 10 and 17 by rupee impact.
+  - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date gets a "Skip" option with the recurring screens (step 8); it needs a small migration.
 - **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
 
 ## Open decisions
@@ -136,7 +154,6 @@ Decide these when the related work starts. Until then they are only suggestions.
 
 | Topic | Relevant BRD | Suggested starting point |
 |---|---|---|
-| PWA / installability and offline entry | NFR-2, NFR-4 | — |
 | Charts library | FR-8, Section 9 | — |
 | Parsing .xlsx for import | FR-14 | SheetJS (`xlsx`) in the import script only |
 | Storing AI provider keys | FR-10.1, NFR-6 | Encrypted on the server, never sent back to the client |

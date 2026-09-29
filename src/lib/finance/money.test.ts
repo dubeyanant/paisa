@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatINR, parseRupees } from "./money";
+import { formatINR, parseRupees, parseSignedRupees, toRupeesInput } from "./money";
 
 describe("formatINR", () => {
   test("uses the ₹ sign and Indian grouping (BR-11)", () => {
@@ -43,5 +43,34 @@ describe("parseRupees", () => {
 
   test.each(["", "abc", "-5", "1.234", "1e3", ".5", "12.3.4"])("rejects %p", (input) => {
     expect(parseRupees(input)).toBeNull();
+  });
+});
+
+describe("parseSignedRupees", () => {
+  test.each([
+    ["120.50", 12050],
+    ["-120.50", -12050],
+    [" -1,250 ", -125000],
+    ["0", 0],
+    ["-0", 0],
+  ])("%s is %i paise", (input, paise) => {
+    expect(parseSignedRupees(input)).toBe(paise);
+  });
+
+  test.each(["", "-", "--5", "5-", "abc"])("rejects %p", (input) => {
+    expect(parseSignedRupees(input)).toBeNull();
+  });
+});
+
+describe("toRupeesInput", () => {
+  test.each([
+    [1250000, "12500"],
+    [12050, "120.50"],
+    [1, "0.01"],
+    [0, "0"],
+    [-2500000, "-25000"],
+  ])("%i paise is %p", (paise, text) => {
+    expect(toRupeesInput(paise)).toBe(text);
+    expect(parseSignedRupees(text)).toBe(paise);
   });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   addDays,
+  fromIstDateTimeInput,
+  toIstDateTimeInput,
   budgetMonthOf,
   istDate,
   istStartOf,
@@ -84,4 +86,21 @@ describe("typical month periods (BR-10)", () => {
     expect(typicalMonthPeriods(oct, "2026-10-02")).toEqual([]);
     expect(typicalMonthPeriods(oct, null)).toEqual([]);
   });
+});
+
+describe("IST date-time inputs", () => {
+  test("show a moment in IST", () => {
+    expect(toIstDateTimeInput("2026-09-30T19:00:00Z")).toBe("2026-10-01T00:30");
+  });
+
+  test("read an IST value back as the same moment", () => {
+    expect(fromIstDateTimeInput("2026-10-01T00:30")?.toISOString()).toBe("2026-09-30T19:00:00.000Z");
+  });
+
+  test.each(["", "2026-10-01", "2026-02-30T10:00", "2026-10-01T24:00", "garbage"])(
+    "rejects %p",
+    (value) => {
+      expect(fromIstDateTimeInput(value)).toBeNull();
+    },
+  );
 });
