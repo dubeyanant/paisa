@@ -14,7 +14,7 @@ Last updated: 2026-09-29 (step 6 started).
 | 3 | Core database schema, owner-only RLS, default categories | Done | PRs #3 and #5, TD-13 |
 | 4 | Calculation library: money, IST dates, balances, totals, budgets | Done | PR #4, `src/lib/finance/` |
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
-| 6 | **Transaction list, category management, tags (FR-4, FR-5, FR-8.3)** | **In progress** | 6a: search and merge functions, TD-15 |
+| 6 | **Transaction list, category management, tags (FR-4, FR-5, FR-8.3)** | **In progress** | 6a (PR #12): search and merge functions, TD-15. 6b: Entries screen, balance corrections |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
 | 8 | Recurring commitments and budget rules (FR-6, FR-7) | Logic done, screens to do | `src/lib/finance/`, TD-16 |
 | 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
@@ -40,7 +40,8 @@ Entries screen and balance corrections. **6c** is categories and tags.
 - **Tags (FR-5).** Create tags and add them on the Add screen, which step 5 left out.
 - **Left over from step 5:** balance corrections (adjustments) can be listed but not
   yet made or deleted in the app. An entries tab goes in the bottom bar, which puts Add
-  in the middle.
+  in the middle. *(6b: a correction is made from the account's screen and deleted from
+  its entry.)*
 
 ## Later
 

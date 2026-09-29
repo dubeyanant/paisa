@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NavigationTracker } from "@/components/back";
 import { BottomNav, SideNav } from "./nav";
 
 // The signed-in app: side navigation on laptops, a bottom tab bar on phones.
@@ -18,6 +19,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </main>
       </div>
       <BottomNav />
+      <NavigationTracker />
     </div>
   );
 }

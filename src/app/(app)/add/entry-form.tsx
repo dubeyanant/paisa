@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useGoBack } from "@/components/back";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { PlusIcon } from "@/components/icons";
 import { buttonClass, inputClass } from "@/components/ui";
@@ -54,6 +55,8 @@ type Saved = { text: string; ids: string[] };
 export function EntryForm(props: EntryFormProps) {
   const { accounts, subcategories, picks, frequent, defaultAccountId, initial } = props;
   const router = useRouter();
+  // After saving or deleting an edit, back to the list it was opened from.
+  const goBack = useGoBack("/entries");
   const editing = initial?.mode === "edit" ? initial.entry : undefined;
   const source = initial?.entry;
 
@@ -180,9 +183,7 @@ export function EntryForm(props: EntryFormProps) {
     event.preventDefault();
     if (pending) return;
     if (editing) {
-      run(() => updateEntry(editing.id, input()), () => {
-        router.push("/");
-      });
+      run(() => updateEntry(editing.id, input()), goBack);
       return;
     }
     const summary = describeSaved();
@@ -221,7 +222,7 @@ export function EntryForm(props: EntryFormProps) {
 
   function remove() {
     if (!editing || !confirm("Delete this entry? This can't be undone.")) return;
-    run(() => deleteEntries([editing.id]), () => router.push("/"));
+    run(() => deleteEntries([editing.id]), goBack);
   }
 
   function duplicate() {

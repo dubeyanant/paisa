@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AccountsIcon, HomeIcon, MoreIcon, PlusIcon } from "@/components/icons";
+import { AccountsIcon, EntriesIcon, HomeIcon, MoreIcon, PlusIcon } from "@/components/icons";
 
 const ITEMS = [
   { href: "/", label: "Home", Icon: HomeIcon },
+  { href: "/entries", label: "Entries", Icon: EntriesIcon },
   { href: "/accounts", label: "Accounts", Icon: AccountsIcon },
   { href: "/more", label: "More", Icon: MoreIcon },
 ];
@@ -52,7 +53,8 @@ export function SideNav() {
   );
 }
 
-// Bottom tab bar on phones, within reach of the thumb (NFR-1).
+// Bottom tab bar on phones, within reach of the thumb (NFR-1), with Add in the
+// middle.
 export function BottomNav() {
   const pathname = usePathname();
   return (
