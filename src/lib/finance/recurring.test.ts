@@ -52,6 +52,14 @@ describe("pending entries (FR-6 AC1)", () => {
     ];
     expect(pendingDues([rent], paymentsByCommitment(paid), "2026-08-20")).toEqual([]);
   });
+
+  test("a skipped due date isn't pending, and payments cover the dates around it", () => {
+    const skipped = { ...rent, skipped_on: ["2026-08-05"] };
+    const paid = [tx({ kind: "expense", amount: 1500000, recurring_id: "rent", occurred_at: at("2026-07-05") })];
+    const payments = paymentsByCommitment(paid);
+    expect(pendingDues([skipped], payments, "2026-09-10").map((d) => d.due_on)).toEqual(["2026-09-05"]);
+    expect(dueDates(skipped, "2026-10-01")).toEqual(["2026-07-05", "2026-09-05"]);
+  });
 });
 
 describe("committed and reserved", () => {
@@ -71,6 +79,12 @@ describe("committed and reserved", () => {
 
   test("unpaid due dates from earlier months stay reserved", () => {
     expect(reservedIn([rent], [], sep, "2026-09-01")).toBe(4500000);
+  });
+
+  test("a skipped due date isn't reserved or committed", () => {
+    const skipped = { ...rent, skipped_on: ["2026-08-05", "2026-09-05"] };
+    expect(reservedIn([skipped], [], sep, "2026-09-01")).toBe(1500000);
+    expect(committedIn([skipped], new Map(), sep)).toBe(0);
   });
 
   test("a paid variable bill counts at what was paid (FR-6 AC3)", () => {

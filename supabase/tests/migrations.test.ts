@@ -635,6 +635,53 @@ describe("merging", () => {
   });
 });
 
+describe("skipping a due date", () => {
+  const USER = "00000000-0000-4000-8000-000000000006";
+  let gym: string;
+
+  beforeAll(async () => {
+    await db.query("insert into auth.users (id, email) values ($1, 'sixth@example.com')", [USER]);
+    const bank = await makeAccount(USER, "Bank");
+    const training = await subcategoryId(USER, "Gym & training");
+    const [row] = await as(USER, () =>
+      rows<{ id: string }>(
+        `insert into recurring_commitments (name, kind, amount, account_id, subcategory_id, unit, first_due_on)
+         values ('Gym', 'expense', 250000, $1, $2, 'month', '2026-07-10') returning id`,
+        [bank, training],
+      ),
+    );
+    gym = row.id;
+  });
+
+  const skip = (userId: string | null, date: string) =>
+    as(userId, () => rows("insert into recurring_skips (recurring_id, due_on) values ($1, $2)", [gym, date]));
+  const skips = () =>
+    rows<{ due_on: string }>("select due_on::text from recurring_skips where recurring_id = $1 order by due_on", [
+      gym,
+    ]);
+
+  test("records each skipped date once, and can be undone", async () => {
+    await skip(USER, "2026-08-10");
+    await expect(skip(USER, "2026-08-10")).rejects.toThrow(/duplicate key/);
+    await skip(USER, "2026-09-10");
+    await as(USER, () =>
+      rows("delete from recurring_skips where recurring_id = $1 and due_on = '2026-09-10'", [gym]),
+    );
+    expect((await skips()).map((s) => s.due_on)).toEqual(["2026-08-10"]);
+  });
+
+  test("only the owner can see or skip their commitment's dates", async () => {
+    expect(await as(OWNER, () => rows("select * from recurring_skips"))).toEqual([]);
+    await expect(skip(OWNER, "2026-10-10")).rejects.toThrow(/foreign key/);
+    await expect(skip(null, "2026-10-10")).rejects.toThrow(/permission denied/);
+  });
+
+  test("go when their commitment is deleted", async () => {
+    await as(USER, () => rows("delete from recurring_commitments where id = $1", [gym]));
+    expect(await skips()).toEqual([]);
+  });
+});
+
 describe("Lost Track", () => {
   test("can be renamed but not deleted", async () => {
     const id = await subcategoryId(OWNER, "Lost Track");
