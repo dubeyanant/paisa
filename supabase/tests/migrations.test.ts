@@ -696,6 +696,113 @@ describe("skipping a due date", () => {
   });
 });
 
+describe("save_budget_rule", () => {
+  const USER = "00000000-0000-4000-8000-000000000007";
+  type Bucket = { id: string; name: string; share_bp: number; holds_savings: boolean; sort_order: number };
+  let rule: string;
+
+  beforeAll(async () => {
+    await db.query("insert into auth.users (id, email) values ($1, 'seventh@example.com')", [USER]);
+    [{ id: rule }] = await rows<{ id: string }>("select id from budget_rules where user_id = $1", [USER]);
+  });
+
+  const buckets = () =>
+    rows<Bucket>("select id, name, share_bp, holds_savings, sort_order from budget_buckets where rule_id = $1 order by sort_order", [
+      rule,
+    ]);
+  const save = (list: unknown[], moves: Record<string, string> = {}, userId = USER, ruleId = rule) =>
+    as(userId, () =>
+      rows("select public.save_budget_rule($1, 'My rule', 'income', null, $2, $3)", [
+        ruleId,
+        JSON.stringify(list),
+        JSON.stringify(moves),
+      ]),
+    );
+  const keep = (b: Bucket, changes: Partial<Bucket> = {}) => ({
+    key: b.id,
+    id: b.id,
+    name: b.name,
+    share_bp: b.share_bp,
+    holds_savings: b.holds_savings,
+    ...changes,
+  });
+
+  test("switches to a preset by changing the shares (UAT-7)", async () => {
+    const [needs, wants, savings] = await buckets();
+    await save([keep(needs, { share_bp: 6000 }), keep(wants, { share_bp: 2000 }), keep(savings)]);
+    expect((await buckets()).map((b) => [b.name, b.share_bp])).toEqual([
+      ["Needs", 6000],
+      ["Wants", 2000],
+      ["Savings", 2000],
+    ]);
+  });
+
+  test("rejects shares that don't add up to 100% (FR-7 AC2), and bad bucket counts", async () => {
+    const [needs, wants, savings] = await buckets();
+    const four = [keep(needs, { share_bp: 4500 }), keep(wants, { share_bp: 2000 }), keep(savings), { key: "x", name: "Family", share_bp: 1000 }];
+    await expect(save(four)).rejects.toThrow(/add up to 100%/);
+    await expect(save([keep(needs, { share_bp: 10000 })])).rejects.toThrow(/2 to 6 buckets/);
+    const seven = Array.from({ length: 7 }, (_, i) => ({ key: `k${i}`, name: `B${i}`, share_bp: i === 0 ? 4000 : 1000 }));
+    await expect(save(seven)).rejects.toThrow(/2 to 6 buckets/);
+    await expect(save([keep(needs, { share_bp: 5000, holds_savings: true }), keep(savings, { share_bp: 5000 })])).rejects.toThrow(
+      /one bucket can hold savings/,
+    );
+    // Nothing changed.
+    expect((await buckets()).map((b) => b.share_bp)).toEqual([6000, 2000, 2000]);
+  });
+
+  test("adds, renames, swaps and removes buckets, moving what the removed one held", async () => {
+    const [needs, wants, savings] = await buckets();
+    const bank = await makeAccount(USER, "Bank");
+    const eatingOut = await subcategoryId(USER, "Eating out");
+    const [entry] = await as(USER, () =>
+      rows<{ id: string }>(
+        `insert into transactions (kind, amount, account_id, subcategory_id, occurred_at, bucket_override_id)
+         values ('expense', 10000, $1, $2, now(), $3) returning id`,
+        [bank, eatingOut, wants.id],
+      ),
+    );
+    // Wants goes into a new "Lifestyle" bucket; Needs and Savings swap names.
+    await save(
+      [
+        keep(savings, { name: "Needs", share_bp: 5500, holds_savings: false }),
+        keep(needs, { name: "Savings", share_bp: 2000, holds_savings: true }),
+        { key: "new", id: null, name: "Lifestyle", share_bp: 2500 },
+      ],
+      { [wants.id]: "new" },
+    );
+    const after = await buckets();
+    expect(after.map((b) => [b.name, b.share_bp, b.holds_savings])).toEqual([
+      ["Needs", 5500, false],
+      ["Savings", 2000, true],
+      ["Lifestyle", 2500, false],
+    ]);
+    const lifestyle = after[2].id;
+    const [{ bucket_id }] = await rows<{ bucket_id: string }>(
+      "select bucket_id from bucket_assignments where rule_id = $1 and subcategory_id = $2",
+      [rule, eatingOut],
+    );
+    expect(bucket_id).toBe(lifestyle);
+    const [{ bucket_override_id }] = await rows<{ bucket_override_id: string }>(
+      "select bucket_override_id from transactions where id = $1",
+      [entry.id],
+    );
+    expect(bucket_override_id).toBe(lifestyle);
+  });
+
+  test("won't touch another user's rule or buckets", async () => {
+    const [ownerRule] = await rows<{ id: string }>("select id from budget_rules where user_id = $1", [OWNER]);
+    const list = [
+      { key: "a", name: "A", share_bp: 5000 },
+      { key: "b", name: "B", share_bp: 5000 },
+    ];
+    await expect(save(list, {}, USER, ownerRule.id)).rejects.toThrow(/not found/);
+    const [ownerBucket] = await rows<{ id: string }>("select id from budget_buckets where rule_id = $1", [ownerRule.id]);
+    await expect(save([{ ...list[0], id: ownerBucket.id }, list[1]])).rejects.toThrow(/not found/);
+    await expect(save(list, {}, null as unknown as string)).rejects.toThrow(/permission denied/);
+  });
+});
+
 describe("Lost Track", () => {
   test("can be renamed but not deleted", async () => {
     const id = await subcategoryId(OWNER, "Lost Track");

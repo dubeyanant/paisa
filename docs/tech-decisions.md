@@ -137,6 +137,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Views use `security_invoker`, so RLS still limits them to the owner's rows. They're granted to `authenticated` only.
   - The same goes for searching entries (FR-8.3). `search_transactions()` applies the filters and `transaction_totals()` sums what they match, so the totals cover every match, not just the rows on screen. Both are SQL functions with the caller's rights, granted to `authenticated` only.
   - Merging subcategories and categories (FR-4) is a SQL function too (`merge_subcategory()`, `merge_category()`), so a merge happens completely or not at all.
+  - So is saving a budget rule (FR-7, `save_budget_rule()`): its base and all its buckets at once, so the shares never stop adding up to 100%. A removed bucket hands its subcategories and overrides to the bucket the owner picks. The app edits the one active rule in place; a preset such as 60/20/20 just fills in its buckets.
 - **Why:** The owner already has thousands of entries, and the API returns at most 1,000 rows per request. Loading them all on every screen would be slow (NFR-3, NFR-8).
 
 ### TD-16 Recurring commitments and insights: pure functions
