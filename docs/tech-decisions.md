@@ -34,7 +34,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Nobody changes tables by hand in the dashboard or runs `db push`.
   - Merging to `main` changes the live database, so merge a migration only when it's ready.
   - Vercel and Supabase deploy from the same merge in no guaranteed order. A migration must not break the app version currently deployed: add first, remove later.
-  - Preview deployments use the production database, where a PR's own migration hasn't run yet. So a preview can't show code that needs that migration, and after the merge the new app may briefly run before the migration does. Ship a migration in its own PR, merged before the code that uses it, or make the code cope without it.
+  - Preview deployments, pre-prod included (TD-5), use the production database, where a migration runs only once it merges into `main`. So pre-prod can't show code that needs a new migration, and after the merge the new app may briefly run before the migration does. Push a migration to `dev` and get it merged into `main` before pushing the code that uses it, or make the code cope without it.
 - **Why:** Schema history lives in Git, and every change is reviewed in a PR.
 
 ### TD-4 Hosting and configuration: Vercel
@@ -45,14 +45,21 @@ Add a new entry when a decision is made, with the date and the reason.
   - Secrets never go in `.env`. They go in `.env.local` (git-ignored) or in the platform's env settings.
 - **Why:** Vercel is the native host for Next.js, and the integrations keep GitHub, Vercel and Supabase in sync.
 
-### TD-5 Git workflow: `main` is PR-only
-- **Date:** 2026-09-28
-- **Decision:** Nobody pushes directly to `main`, including the owner and Claude sessions. All work happens on a branch, and `main` changes only when a PR is merged with green checks (CI `check`, Vercel, Supabase Preview).
+### TD-5 Git workflow: work on `dev`, `main` only by PR from `dev`
+- **Date:** 2026-09-28 (revised 2026-09-29: the `dev` branch and pre-prod)
+- **Decision:**
+  - Work is committed and pushed straight to `dev`, by the owner and by Claude sessions.
+  - Every push to `dev` deploys to **pre-prod**: Vercel's preview deployment for the branch, at its fixed branch URL `paisa-git-dev-anant-dubeys-projects.vercel.app`. Pre-prod uses the production database (TD-3, TD-4), so what's done there changes real data.
+  - `main` changes only when the owner merges a PR from `dev` in GitHub, with green checks (CI `check` and `from-dev`, Vercel, Supabase Preview). Claude sessions may open that PR but never merge it.
+  - PRs into `main` are merged with a merge commit, so `dev` stays an ancestor of `main` and the next PR shows only what's new.
 - **Enforcement:**
-  - A GitHub ruleset on `main` requires a pull request and the `check` status to pass. It blocks force pushes and branch deletion, and has no bypass.
+  - A GitHub ruleset on `main` requires a pull request merged with a merge commit, and the `check` and `from-dev` statuses to pass. It blocks force pushes and branch deletion, and has no bypass.
+  - `.github/workflows/pr-source.yml` (`from-dev`) fails any PR into `main` that doesn't come from this repo's `dev`.
+  - A ruleset on `dev` blocks force pushes and branch deletion.
   - `.githooks/pre-push` rejects pushes to `main` from any clone. `bun install` enables it through the `prepare` script.
-  - `.github/workflows/ci.yml` runs lint, typecheck, tests and build on every PR and on `main`.
-- **Why:** Every merge to `main` deploys to production and can change the live database (TD-3, TD-4).
+  - `.claude/settings.json` denies `gh pr merge`.
+  - `.github/workflows/ci.yml` runs lint, typecheck, tests and build on every PR and on pushes to `main` and `dev`.
+- **Why:** Every merge to `main` deploys to production and can change the live database (TD-3, TD-4). One working branch with a fixed pre-prod URL lets the owner try each change, on a phone too, and choose when it goes live.
 
 ### TD-6 Public repo: no personal data
 - **Date:** 2026-09-28
@@ -68,7 +75,7 @@ Add a new entry when a decision is made, with the date and the reason.
 - **Decision:**
   - `.claude/settings.json` runs `scripts/cloud-setup.sh` at session start. In cloud sessions only (`CLAUDE_CODE_REMOTE`), the script installs Bun through npm if it's missing, then runs `bun install`.
   - Cloud sessions have **no Supabase access**. Supabase is not on the environment's network allowlist, and no credentials are set.
-  - Cloud sessions write code and migrations, push a branch and open a PR. Running app behaviour is checked on the PR's Vercel preview.
+  - Cloud sessions write code and migrations and push them to `dev` (TD-5). Running app behaviour is checked on pre-prod.
 - **Why:** Schema changes reach the database only through Git (TD-3), and cloud sessions never touch the production database.
 
 ### TD-8 Money: whole paise in `bigint`

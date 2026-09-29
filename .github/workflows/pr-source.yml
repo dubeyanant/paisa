@@ -1,0 +1,19 @@
+name: PR source
+
+# main takes pull requests from this repo's dev branch only (TD-5).
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  from-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          HEAD: ${{ github.event.pull_request.head.label }}
+          EXPECTED: ${{ github.repository_owner }}:dev
+        run: |
+          if [ "$HEAD" != "$EXPECTED" ]; then
+            echo "main takes pull requests from dev only, not $HEAD (see TD-5)." >&2
+            exit 1
+          fi

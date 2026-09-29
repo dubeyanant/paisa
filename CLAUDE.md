@@ -6,8 +6,11 @@
 
 ## Rules
 
-- **Never commit or push directly to `main`** (TD-5). Work on a branch and open a PR
-  with `gh pr create`. Every merge to `main` deploys to production and can change
-  the live database. Never bypass the ruleset or the pre-push hook.
+- **Work on `dev`; never commit or push to `main`** (TD-5). Commit and push straight to
+  `dev`, which deploys to pre-prod. Pre-prod uses the production database, so anything
+  done there changes real data. `main` changes only when the owner merges a PR from `dev`
+  in GitHub: open one with `gh pr create --base main --head dev` when asked, but never
+  merge it. Every merge to `main` deploys to production and can change the live
+  database. Never bypass the rulesets or the pre-push hook.
 - **This repo is public** (TD-6). Never commit the owner's real financial data or
   personal details. Examples, seed data and test fixtures must be made up.
