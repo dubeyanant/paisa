@@ -4,6 +4,7 @@ import { ChevronRightIcon } from "@/components/icons";
 import { Card, PageHeader } from "@/components/ui";
 import { periodLabel } from "@/lib/budget";
 import { getInsights } from "@/lib/data/insights";
+import { getTagReports } from "@/lib/data/tags";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type { CategoryTrend, Pace } from "@/lib/finance/insights";
 import { formatINR } from "@/lib/finance/money";
@@ -16,6 +17,7 @@ import {
   savingsHeadline,
   smallSpendHeadline,
   subscriptionsHeadline,
+  tagHeadline,
   trendHeadline,
   upcomingHeadline,
 } from "@/lib/insights";
@@ -29,10 +31,11 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const TOP = 6;
 
 // The Phase 1 insights (FR-8.4, FR-9), each with a plain-language headline and
-// a chart or list. Budget adherence (INS-17) and upcoming bills (INS-10) have
-// their own screens, so they show here as headlines that link there.
+// a chart or list. Budget adherence (INS-17), upcoming bills (INS-10) and tag
+// reports (INS-13) have their own screens, so they show here as headlines that
+// link there.
 export default async function InsightsPage() {
-  const d = await getInsights();
+  const [d, tagData] = await Promise.all([getInsights(), getTagReports()]);
   const l = lookups(d.labels);
   const categoryName = new Map(d.labels.subcategories.map((s) => [s.category_id, s.category]));
   const category = (id: string) => categoryName.get(id) ?? "Other";
@@ -43,6 +46,8 @@ export default async function InsightsPage() {
   // Months before the first entry have nothing to show.
   const savings = d.savings.filter((m) => d.firstDate !== null && m.period.end > d.firstDate);
   const topSmall = d.smallSpends[0];
+  // The latest tag with spending (INS-13).
+  const latestTag = [...tagData.reports.values()].find((r) => r.total > 0);
 
   return (
     <>
@@ -163,6 +168,15 @@ export default async function InsightsPage() {
           headline={upcomingHeadline(d.upcoming.items, d.today)}
         />
         {d.budget && <LinkSection href="/budget" title="Budget" headline={budgetHeadline(d.budget.buckets)} />}
+        <LinkSection
+          href={latestTag ? `/more/tags/${latestTag.tagId}` : "/more/tags"}
+          title="Trips and tags"
+          headline={
+            latestTag
+              ? tagHeadline(tagData.tags.find((t) => t.id === latestTag.tagId)?.name ?? "Latest tag", latestTag, category)
+              : "Tag a trip or an event to see what it cost."
+          }
+        />
       </div>
     </>
   );

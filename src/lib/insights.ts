@@ -9,6 +9,7 @@ import type { RecurringPayment } from "@/lib/finance/detection";
 import type { CategoryTrend, EmergencyFund, Pace, Ready, SavingsMonth, SmallSpend } from "@/lib/finance/insights";
 import { formatINR } from "@/lib/finance/money";
 import type { UpcomingItem } from "@/lib/finance/recurring";
+import type { TagReport } from "@/lib/finance/tags";
 import { addDays } from "@/lib/finance/dates";
 import { percent, times } from "@/lib/home";
 
@@ -135,3 +136,21 @@ export function budgetHeadline(buckets: BucketAdherence[]): string {
 // The small-spend thresholds Settings offers (INS-06), in paise. ₹200 is the
 // default (BRD Q4).
 export const SMALL_SPEND_OPTIONS = [5000, 10000, 15000, 20000, 30000, 50000, 100000];
+
+// INS-13: "Goa Trip: ₹18,000 over 6 days, ₹3,000/day; 40% on Activities."
+export function tagHeadline(name: string, r: TagReport, categoryName: (id: string) => string): string {
+  if (r.total <= 0) return `${name}: nothing spent yet.`;
+  const days = r.days === 1 ? "1 day" : `${r.days} days`;
+  const main = `${name}: ${formatINR(r.total)} over ${days}, ${formatINR(r.perDay)}/day`;
+  const [top, amount] = [...r.byCategory].sort(([, a], [, b]) => b - a)[0];
+  if (r.byCategory.size < 2) return `${main}, all on ${categoryName(top)}.`;
+  return `${main}; ${percent(amount / r.total)} on ${categoryName(top)}.`;
+}
+
+// INS-13 comparison: "40% more a day than your other tags."
+export function tagComparison(r: TagReport): string | null {
+  if (r.vsOthers === null || r.total <= 0) return null;
+  const change = Math.round((r.vsOthers - 1) * 100);
+  if (Math.abs(change) < 5) return "About the same a day as your other tags.";
+  return `${Math.abs(change)}% ${change > 0 ? "more" : "less"} a day than your other tags.`;
+}

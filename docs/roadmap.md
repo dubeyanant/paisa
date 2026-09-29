@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 9: Home and Insights done, tag reports next).
+Last updated: 2026-09-29 (step 9 built; Phase 1 ends after a week of daily use).
 
 ## Phase 1: replace the old app
 
@@ -17,7 +17,7 @@ Last updated: 2026-09-29 (step 9: Home and Insights done, tag reports next).
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Done | PRs #12 to #15, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
 | 8 | Recurring commitments and budget rules (FR-6, FR-7) | Done | PRs #16 to #22, TD-16, TD-18 |
-| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | In progress: Home and Insights done, tag reports to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
+| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Done | PRs #23, #24 and the tag reports PR, TD-16, TD-17 |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
 It also covers the Phase 2 insights INS-07, 08, 11, 12, 15 and 18, which cost little
@@ -36,7 +36,7 @@ Step 9 ships in three PRs based on `main`. None needs a migration.
   alerts (INS-19) come next, then Due now, the next 3 planned payments with the 30-day
   total (INS-10), and the latest entries. Overdue payments aren't among Home's alerts,
   since Due now lists them with a Confirm button. Headlines are in `src/lib/home.ts`.
-- **9b: Insights screen (FR-8.4).** Each insight has a headline with a number, or says how
+- **9b (#24): Insights screen (FR-8.4).** Each insight has a headline with a number, or says how
   many more months it needs (FR-9 AC2): savings rate with a 6-month Recharts chart (INS-02),
   emergency fund cover (INS-03), pace by category (INS-04), categories against usual with
   their last 6 months (INS-05), the top 3 small spends (INS-06), and every recurring payment
@@ -45,10 +45,14 @@ Step 9 ships in three PRs based on `main`. None needs a migration.
   laptop-only. Insights is in the side navigation; on a phone the tab bar has no room, so
   it's reached from Home's alerts and from More. Settings sets the small-spend limit
   (₹50 to ₹1,000, ₹200 by default). Headlines are in `src/lib/insights.ts`.
-- **9c: tag reports (INS-13).** On a tag's screen: total, days, cost per day, the
-  breakdown by category and a comparison with other tags.
+- **9c: tag reports (INS-13).** A tag's screen leads with what it cost, over how many days,
+  per day and where most of it went ("Goa Trip: ₹18,000 over 6 days, ₹3,000/day; 40% on
+  Fun & Travel"), and how its cost per day compares with the other tags. Where it went
+  breaks it down by category and subcategory, and a chart ranks every tag by cost per
+  day. The Tags list shows each tag's total and cost per day, and Insights links to the
+  latest one. Only tagged entries are loaded, so this stays quick.
 
-Phase 1 is done after 9c, once the owner has used Paisa for a week (the owner's call;
+Phase 1 is done once the owner has used Paisa for a week (the owner's call;
 the BRD's exit criterion says 2 weeks). The owner already logs everything in Paisa, not
 the old app, so no second import is needed.
 
@@ -94,8 +98,6 @@ other's branches, so #15 brought them to `main`.
   dates. The Add and edit screens take tags, and suggest a dated tag for an entry in its
   range; nothing is tagged until the owner taps it.
 
-The tag report (INS-13) comes with the insights in step 9. Until then, a tag's screen
-and the Entries screen filtered by that tag show its total.
 
 ## Later
 
