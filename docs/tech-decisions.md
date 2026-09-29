@@ -157,6 +157,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - Charts are Client Components. The headline and figures around a chart render on the server, so a screen reads fine before its charts load (FR-8 AC2).
   - Colours come from the theme tokens in `globals.css` (`var(--accent)` and so on), so charts follow light and dark mode (NFR-7).
   - Small shapes such as a progress bar or a budget meter stay plain HTML and CSS; they don't need a library.
+  - **Phone and laptop (owner, 2026-09-29):** what's used day to day works fully on a phone (adding, entries, balances, free money, budget status, alerts), and every insight keeps its headline and figure there. A chart or table too wide or dense for a phone, such as a multi-series trend or a month-by-category table, can be laptop-only. The phone then shows a compact stand-in, such as the top few items, with a note that the full view is on a larger screen.
 - **Why:** Recharts draws SVG, so it takes colours from CSS variables and resizes to fit a phone or a laptop (NFR-1). It covers every chart the insights need (bars, stacked bars, lines, areas, donuts) with little code, and supports React 19. Chart.js draws on a canvas, which can't read CSS variables; ECharts is much larger; visx and D3 need far more code for each chart.
 
 ## Open decisions
