@@ -3,18 +3,28 @@ import { ChevronRightIcon } from "@/components/icons";
 import { Amount, Card, PageHeader, buttonClass } from "@/components/ui";
 import { listAccounts } from "@/lib/data/accounts";
 import { getLabels, getLatestEntries } from "@/lib/data/entries";
+import { getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
 import { balanceSummary } from "@/lib/finance/balances";
+import { istDate } from "@/lib/finance/dates";
+import { recurringOverview } from "@/lib/recurring";
 import { EntryList } from "./entry-list";
+import { DueNow } from "./more/recurring/due-now";
+import { dueRows, lookups } from "./more/recurring/rows";
 
-// A first Home: where the money is and the latest entries. Insights arrive in
-// roadmap step 9.
+// A first Home: where the money is, bills due now, and the latest entries.
+// Insights arrive in roadmap step 9.
 export default async function Home() {
-  const [accounts, labels, { latest, planned }] = await Promise.all([
+  const [accounts, labels, { latest, planned }, commitments, scheduled] = await Promise.all([
     listAccounts(),
     getLabels(),
     getLatestEntries(),
+    listCommitments(),
+    getScheduleTransactions(),
   ]);
   const summary = balanceSummary(accounts, new Map(accounts.map((a) => [a.id, a.balance])));
+  const now = new Date();
+  const { dueNow } = recurringOverview(commitments, scheduled, now);
+  const due = dueRows(dueNow, commitments, lookups(labels), istDate(now));
 
   return (
     <>
@@ -47,6 +57,17 @@ export default async function Home() {
         </Link>
 
         <div className="flex min-w-0 flex-col gap-6">
+          {due.length > 0 && (
+            <section>
+              <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold">Due now</h2>
+                <Link href="/more/recurring" className="flex h-11 items-center text-sm font-medium text-accent">
+                  Recurring
+                </Link>
+              </div>
+              <DueNow rows={due} />
+            </section>
+          )}
           {planned.length > 0 && (
             <section>
               <h2 className="mb-3 text-lg font-semibold">Planned</h2>

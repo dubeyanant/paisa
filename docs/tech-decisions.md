@@ -147,6 +147,8 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Reserved money** is every unpaid due date and planned outgoing entry up to the end of the budget month, overdue ones included.
   - **Detection** (`detection.ts`) groups unlinked expenses by subcategory and note (transfers by their two accounts and note), and needs a regular gap (weekly, monthly, every 3 or 6 months, yearly), amounts within half of each other, and a recent payment. It offers a series after 3 payments; INS-09 lists one after 2.
   - **Skipping a due date** (a month the gym was closed, a bill that didn't come) stores it in `recurring_skips`. It drops out of the schedule, so it's neither pending nor reserved, and payments cover the remaining due dates in order. Deleting the row undoes the skip.
+  - **Confirming a due date** records the payment linked to the commitment, dated now if it's due today, or at noon IST on the due date if it's overdue, so a late confirmation still lands in the month it was due. Only the oldest unpaid due date of each commitment can be confirmed or skipped, since a payment always covers the oldest one.
+  - **Detection on the Recurring screen** looks at the last 400 days, enough for three payments every 6 months.
   - **"Min data"** in BRD §9 counts budget months including the current one. Until there's enough, an insight returns `{ ready: false, monthsToGo }`.
   - **INS-19** ranks the flags from INS-04, 05, 09, 10 and 17 by rupee impact.
   - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8).
