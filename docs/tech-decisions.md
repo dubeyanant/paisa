@@ -220,6 +220,35 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Client cache:** `experimental.staleTimes.dynamic` is 30 seconds, so going back to a screen seen in the last 30 seconds is instant. Every save calls `revalidatePath("/", "layout")`, which clears this cache, so a screen never shows figures from before a save. A change made on another device can take up to 30 seconds to show.
 - **Why:** The owner found screens blank for too long before anything showed. TD-19 covers the network side.
 
+### TD-21 Funds: saving up inside the bank
+- **Date:** 2026-09-30
+- **Decision:** A **fund** keeps money for a purpose without moving it. It's listed in More → Planned, next to planned payments (TD-18).
+  - **Two kinds:**
+    - A **goal** saves a target over the budget months you pick (₹60,000 over October to January is ₹15,000 a month), then pays for one purchase.
+    - An **ongoing fund** (Clothes, Trips) saves an optional monthly amount, up to an optional cap, and pays for any number of spends.
+  - **Money in:**
+    - Each budget month's amount goes in on the month's first day.
+    - Money can also be added or taken out by hand at any time (`fund_moves`).
+    - A goal's share of a month is what's still to save divided by the months left, rounded up to the rupee, so an extra amount added by hand lowers the months after it.
+  - **The balance** is what went in minus what was spent from it. The money stays in the bank, but the balance is held back from **available to spend**: bank and cash − set aside − card dues − planned payments − fund balances.
+  - **Spending from a fund:**
+    - An expense (or a refund) that has happened can be marked "From fund" (`transactions.fund_id`).
+    - The fund covers as much as it holds. Anything above that counts like any other spend in its month.
+    - Paying from a fund leaves available to spend unchanged: the bank goes down by the amount the fund releases.
+    - A planned entry can't use a fund until it's confirmed.
+  - **Closing:**
+    - A goal closes at its purchase, its first expense. A goal bought for less frees what's left; one bought early counts the part not yet saved in that month.
+    - A fund can also be closed by hand, which frees its balance.
+    - A fund with spends can't be deleted, only closed, so history stays.
+  - **Budget (FR-7):**
+    - Money counts in the fund's bucket when it goes in, as a payment known in advance, not spending at a pace.
+    - The part of a spend a fund covers isn't counted again, in the budget or in spending pace (INS-04).
+    - Money freed when a fund closes, or taken out by hand, is subtracted in its month. So over a fund's life the bucket counts exactly what was spent from it.
+    - The other insights (savings, categories vs usual, small spends, the Entries totals) see spends as they happened.
+  - **Changing a schedule** (the target, the last month, the monthly amount or the cap) keeps the months already finished as they were. They're saved as `fund_moves`, and the new schedule runs from this month (`schedule_from`).
+  - The logic is pure functions in `src/lib/finance/funds.ts` (TD-16).
+- **Why:** The owner saves for big purchases over months, and used to keep Things, Clothes and Trip bucket accounts for spending that comes and goes. A one-off planned payment took the whole amount out of a single month, and bucket accounts meant moving make-believe money around, the problem TD-18 got rid of. A fund spreads the cost over the months it's saved in and keeps the money where it really is.
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.
