@@ -152,6 +152,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Detection on the Recurring screen** looks at the last 400 days, enough for three payments every 6 months.
   - **"Min data"** in BRD §9 counts budget months including the current one. Until there's enough, an insight returns `{ ready: false, monthsToGo }`.
   - **INS-19** ranks the flags from INS-04, 05, 09, 10 and 17 by rupee impact.
+  - **INS-09 leaves out card bill payments** (2026-09-29). Paying a credit card isn't a cost of its own: what was bought on the card already counts as spending.
   - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8). On screen, commitments and one-off planned entries are both "planned payments" (TD-18).
 - **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
 

@@ -158,19 +158,21 @@ export type EmergencyFund = {
   months: number | null;
 };
 
-// Needs one complete month to average over.
+// Needs one complete month to average over. A screen that loads only recent
+// transactions passes the balances from the database (TD-15).
 export function emergencyFundCoverage(
   transactions: Transaction[],
   accounts: Account[],
   current: Period,
   firstDate: string | null,
+  balances?: Map<string, number>,
 ): Ready<EmergencyFund> {
   return needs(2, current, firstDate, () => {
     const accountsById = new Map(accounts.map((a) => [a.id, a]));
-    const balances = accountBalances(accounts, transactions);
+    const known = balances ?? accountBalances(accounts, transactions);
     const balance = accounts
       .filter((a) => a.is_emergency_fund)
-      .reduce((sum, a) => sum + (balances.get(a.id) ?? 0), 0);
+      .reduce((sum, a) => sum + (known.get(a.id) ?? 0), 0);
     const monthlySpending = average(
       typicalMonthPeriods(current, firstDate).map(
         (p) => periodTotals(transactions, accountsById, p).spending,

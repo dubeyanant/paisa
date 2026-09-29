@@ -36,6 +36,14 @@ export function AccountsIcon(props: IconProps) {
   );
 }
 
+export function InsightsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20h16M7 16.5V11M12 16.5V6M17 16.5v-3.5" strokeWidth={2} />
+    </Icon>
+  );
+}
+
 export function EntriesIcon(props: IconProps) {
   return (
     <Icon {...props}>
