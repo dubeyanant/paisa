@@ -119,6 +119,17 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Tests:** `supabase/tests/migrations.test.ts` runs every migration on an in-memory Postgres (PGlite) with a stand-in for Supabase's auth, then checks defaults, RLS and constraints. It runs in CI, because preview databases are off and a migration would otherwise run for the first time in production.
 - **Why:** These rules keep every figure exact and consistent (NFR-5), keep the data private (NFR-6), and make the flexibility in FR-4 and FR-7 possible without losing history.
 
+### TD-14 Recurring commitments and insights: pure functions
+- **Date:** 2026-09-29
+- **Decision:** Recurring commitments and the native insights are pure functions in `src/lib/finance/`, tested with `bun test`. Screens load rows and pass them in.
+  - **Due dates** come from each commitment's schedule (`recurring.ts`). A monthly due day missing from a month (the 31st) falls on its last day.
+  - **Payments cover due dates in order:** the first linked payment (`recurring_id`) covers the first due date, and so on. Paying early or late still counts. A due date on or before today with no payment is a pending entry. A planned entry linked to a commitment covers its due date.
+  - **Reserved money** is every unpaid due date and planned outgoing entry up to the end of the budget month, overdue ones included.
+  - **Detection** (`detection.ts`) groups unlinked expenses by subcategory and note (transfers by their two accounts and note), and needs a regular gap (weekly, monthly, every 3 or 6 months, yearly), amounts within half of each other, and a recent payment. It offers a series after 3 payments; INS-09 lists one after 2.
+  - **"Min data"** in BRD §9 counts budget months including the current one. Until there's enough, an insight returns `{ ready: false, monthsToGo }`.
+  - **INS-19** ranks the flags from INS-04, 05, 09, 10 and 17 by rupee impact.
+- **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.
