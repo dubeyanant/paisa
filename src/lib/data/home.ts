@@ -4,6 +4,7 @@ import type { getLabels } from "@/lib/data/entries";
 import type { getMoneySummary } from "@/lib/data/summary";
 import { budgetAdherence, plannedPayments } from "@/lib/finance/budget";
 import { istDate, shiftBudgetMonth } from "@/lib/finance/dates";
+import { withoutCovered } from "@/lib/finance/funds";
 import { everyday, monthToDatePace, savingsTrend } from "@/lib/finance/insights";
 
 // Budget months of history before this one that Home's insights look at: the
@@ -18,7 +19,7 @@ export async function getHomeInsights(
   loadingSummary: ReturnType<typeof getMoneySummary>,
   loadingLabels: ReturnType<typeof getLabels>,
 ) {
-  const [{ accounts, commitments, scheduled, month, today }, labels, recent, rule, firstEntry] = await Promise.all([
+  const [{ accounts, commitments, scheduled, month, today, funds, fundBudget }, labels, recent, rule, firstEntry] = await Promise.all([
     loadingSummary,
     loadingLabels,
     getRecentTransactions(daysBackFor(HISTORY_MONTHS)),
@@ -33,13 +34,31 @@ export async function getHomeInsights(
   const categoryOf = new Map(labels.subcategories.map((s) => [s.id, s.category_id]));
   const firstDate = firstEntry ? istDate(firstEntry) : null;
 
-  // Planned payments (rent, bills) are known in advance, so pace leaves them out.
-  const pace = monthToDatePace(everyday(transactions, commitments, today), accountsById, categoryOf, month, today, firstDate);
+  // Planned payments (rent, bills) are known in advance, so pace leaves them
+  // out, and what funds paid for was counted as it was saved (TD-21).
+  const pace = monthToDatePace(
+    everyday(withoutCovered(transactions, fundBudget), commitments, today),
+    accountsById,
+    categoryOf,
+    month,
+    today,
+    firstDate,
+  );
   const budget = rule
-    ? budgetAdherence(transactions, rule, accountsById, month, today, HISTORY_MONTHS, plannedPayments(transactions, commitments, month, today))
+    ? budgetAdherence(
+        transactions,
+        rule,
+        accountsById,
+        month,
+        today,
+        HISTORY_MONTHS,
+        plannedPayments(transactions, commitments, month, today),
+        fundBudget,
+      )
     : null;
 
   return {
+    funds,
     // A savings rate means something once the month is over: until then rent
     // and bills still to pay look like money saved. So it's last month's.
     savings: savingsTrend(transactions, accountsById, shiftBudgetMonth(month, -1), 2),

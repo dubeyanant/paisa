@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
-import { listAccounts } from "@/lib/data/accounts";
 import { daysBackFor, getActiveRule, getFirstEntryDate, getRecentTransactions, inMonths } from "@/lib/data/budget";
-import { getBudgetMonthStartDay, getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
+import { getMoneySummary } from "@/lib/data/summary";
 import { formatShare, headingLabel, periodLabel, statusLabel, streakLabel } from "@/lib/budget";
 import { filtersQuery } from "@/lib/entry-filters";
 import { BudgetBar } from "@/components/budget-bar";
 import { ChevronRightIcon } from "@/components/icons";
 import { budgetAdherence, plannedPayments, type BucketAdherence } from "@/lib/finance/budget";
-import { budgetMonthOf, daysElapsed, istDate, periodLength, shiftBudgetMonth } from "@/lib/finance/dates";
+import { daysElapsed, istDate, periodLength, shiftBudgetMonth } from "@/lib/finance/dates";
+import { fundContributionsIn } from "@/lib/finance/funds";
 import { formatINR } from "@/lib/finance/money";
 
 export const metadata: Metadata = { title: "Budget · Paisa" };
@@ -51,17 +51,12 @@ export default function BudgetPage() {
 }
 
 async function Budget() {
-  const today = istDate(new Date());
-  const [rule, accounts, startDay, firstEntry, recent, commitments, scheduled] = await Promise.all([
+  const [rule, { accounts, commitments, scheduled, month, today, fundBudget }, firstEntry, recent] = await Promise.all([
     getActiveRule(),
-    listAccounts(),
-    getBudgetMonthStartDay(),
+    getMoneySummary(),
     getFirstEntryDate(),
     getRecentTransactions(daysBackFor(HISTORY_MONTHS)),
-    listCommitments(),
-    getScheduleTransactions(),
   ]);
-  const month = budgetMonthOf(today, startDay);
 
   if (!rule) {
     return (
@@ -86,7 +81,9 @@ async function Budget() {
     today,
     HISTORY_MONTHS,
     plannedPayments(transactions, commitments, month, today),
+    fundBudget,
   );
+  const intoFunds = fundContributionsIn(fundBudget, month);
   // Months before the first entry have nothing to judge.
   const firstDate = firstEntry ? istDate(firstEntry) : null;
   const judged = (end: string) => firstDate !== null && end > firstDate;
@@ -124,6 +121,16 @@ async function Budget() {
         <p className="-mt-2 text-sm text-muted">
           The solid part of each bar is what&rsquo;s gone so far; the lighter part is planned payments still to come
           this month. The mark is how much of the month has gone.
+          {intoFunds !== 0 && (
+            <>
+              {" "}
+              Buckets include <span className="tabular-nums">{formatINR(intoFunds)}</span> put into{" "}
+              <Link href="/more/planned#funds" className="font-medium text-accent">
+                funds
+              </Link>{" "}
+              this month, and leave out what funds paid for.
+            </>
+          )}
         </p>
 
         {unassigned !== 0 && (

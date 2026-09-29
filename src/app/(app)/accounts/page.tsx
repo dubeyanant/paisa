@@ -20,6 +20,7 @@ export default async function AccountsPage() {
   // A figure of ₹0 says nothing, so it isn't shown (TD-18).
   const tiles = [
     { label: "Planned", hint: `Still to pay by ${dayInSentence(addDays(month.end, -1), today)}`, value: summary.planned, tone: "text-planned" },
+    { label: "In funds", hint: "Saved up for later", value: summary.funds, tone: "text-planned" },
     { label: "Set aside", hint: "Sinking funds", value: summary.setAside },
     { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, tone: "text-negative" },
     { label: "Card credit", hint: "In your favour", value: summary.cardCredit },
@@ -45,7 +46,9 @@ export default async function AccountsPage() {
         <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums md:text-4xl">
           <Amount value={summary.spendable} className="text-spendable" />
         </p>
-        <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
+        <p className="mt-1 text-sm text-muted">
+          Bank and cash, minus what&rsquo;s planned this month{summary.funds > 0 && ", funds"} and card dues.
+        </p>
         <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-4">
           {tiles.map((tile) => (
             <div key={tile.label} className="min-w-0">

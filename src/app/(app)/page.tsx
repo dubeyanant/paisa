@@ -9,6 +9,7 @@ import { getHomeInsights } from "@/lib/data/home";
 import { getMoneySummary } from "@/lib/data/summary";
 import type { BucketAdherence } from "@/lib/finance/budget";
 import { formatINR } from "@/lib/finance/money";
+import { fundHeld } from "@/lib/funds";
 import { paceText, savingsText } from "@/lib/home";
 import { recurringOverview } from "@/lib/recurring";
 import { EntryList } from "./entry-list";
@@ -22,8 +23,9 @@ type Insights = Awaited<ReturnType<typeof getHomeInsights>>;
 type Latest = Awaited<ReturnType<typeof getLatestEntries>>;
 
 // Home (FR-8): what's free to spend, this month at a glance (budget buckets,
-// everyday spending pace, last month's savings rate), planned payments due now
-// and coming up, and the latest entries. Alerts (INS-19) aren't shown for now:
+// funds being saved up, everyday spending pace, last month's savings rate),
+// planned payments due now and coming up, and the latest entries. Alerts
+// (INS-19) aren't shown for now:
 // the owner wants only the budget and a few key figures here.
 //
 // Every load starts here at once, and each part shows as soon as its own
@@ -81,7 +83,9 @@ async function Spendable({ summary: loading }: { summary: Promise<Summary> }) {
         <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
           <Amount value={summary.spendable} className="text-spendable" />
         </p>
-        <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
+        <p className="mt-1 text-sm text-muted">
+          Bank and cash, minus what&rsquo;s planned this month{summary.funds > 0 && ", funds"} and card dues.
+        </p>
         <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
           <div className="min-w-0">
             <dt className="text-sm text-muted">Planned this month</dt>
@@ -95,6 +99,14 @@ async function Spendable({ summary: loading }: { summary: Promise<Summary> }) {
               {formatINR(summary.cardDues)}
             </dd>
           </div>
+          {summary.funds !== 0 && (
+            <div className="min-w-0">
+              <dt className="text-sm text-muted">In funds</dt>
+              <dd className="truncate font-medium tabular-nums">
+                <Amount value={summary.funds} className="text-planned" />
+              </dd>
+            </div>
+          )}
           {summary.setAside !== 0 && (
             <div className="min-w-0">
               <dt className="text-sm text-muted">Set aside</dt>
@@ -109,12 +121,13 @@ async function Spendable({ summary: loading }: { summary: Promise<Summary> }) {
   );
 }
 
-// Each budget bucket, then everyday spending against usual and last month's
-// savings.
+// Each budget bucket, funds being saved up, then everyday spending against
+// usual and last month's savings.
 async function Glance({ insights: loading }: { insights: Promise<Insights> }) {
   const insights = await loading;
   const pace = paceText(insights.pace);
   const savings = savingsText(insights.savings, insights.firstDate);
+  const funds = insights.funds.filter((s) => !s.closedAt);
   return (
     <Card className="divide-y divide-line">
       {insights.budget && insights.budget.buckets.length > 0 && (
@@ -131,6 +144,22 @@ async function Glance({ insights: loading }: { insights: Promise<Insights> }) {
               <BucketRow key={b.bucket.id} b={b} />
             ))}
           </ul>
+        </Link>
+      )}
+      {funds.length > 0 && (
+        <Link href="/more/planned#funds" className="block p-4 transition-colors hover:bg-foreground/[0.03] md:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted">Funds</p>
+            <ChevronRightIcon className="-mr-1 size-5 text-muted" />
+          </div>
+          <p className="mt-1 text-sm tabular-nums">
+            {funds.map((s, i) => (
+              <span key={s.fund.id}>
+                {i > 0 && <span className="text-muted"> · </span>}
+                <span className="font-medium">{s.fund.name}</span> {fundHeld(s)}
+              </span>
+            ))}
+          </p>
         </Link>
       )}
       <dl className="grid grid-cols-2 gap-4 p-4 md:p-6">

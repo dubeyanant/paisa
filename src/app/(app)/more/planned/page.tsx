@@ -4,12 +4,14 @@ import { Suspense } from "react";
 import { ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { getLabels } from "@/lib/data/entries";
+import type { FundRowState } from "@/lib/data/funds";
 import { getDetectionHistory, type CommitmentRow } from "@/lib/data/recurring";
 import { getMoneySummary } from "@/lib/data/summary";
 import { addDays } from "@/lib/finance/dates";
 import { detectRecurring } from "@/lib/finance/detection";
 import { formatINR } from "@/lib/finance/money";
 import { recurringCost } from "@/lib/finance/recurring";
+import { fundDetail } from "@/lib/funds";
 import { dayInSentence, describeSchedule, recurringOverview } from "@/lib/recurring";
 import { ComingUp } from "./coming-up";
 import { DueNow } from "./due-now";
@@ -20,8 +22,9 @@ export const metadata: Metadata = { title: "Planned · Paisa" };
 const listItem =
   "flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-foreground/[0.03]";
 
-// Planned payments (FR-6, TD-18): what's due now, what's coming up, and every
-// repeating payment, with payments found in the history offered as new ones.
+// Planned payments (FR-6, TD-18): what's due now, what's coming up, funds
+// being saved up (TD-21), and every repeating payment, with payments found in
+// the history offered as new ones.
 // The header shows at once. Every load starts here; the suggestions, which
 // look through 400 days of entries, can arrive a moment after the rest.
 export default function PlannedPage() {
@@ -62,7 +65,7 @@ type Loading = {
 };
 
 async function Planned({ summary: loadingSummary, labels: loadingLabels, history, now }: Loading & { now: Date }) {
-  const [{ summary, commitments, scheduled: transactions, month, today }, labels] = await Promise.all([
+  const [{ summary, commitments, scheduled: transactions, month, today, funds, startDay }, labels] = await Promise.all([
     loadingSummary,
     loadingLabels,
   ]);
@@ -112,6 +115,8 @@ async function Planned({ summary: loadingSummary, labels: loadingLabels, history
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
+          <Funds funds={funds} held={summary.funds} startDay={startDay} />
+
           <section>
             <h2 className="mb-3 text-lg font-semibold">Repeating</h2>
             {commitments.length === 0 ? (
@@ -193,6 +198,75 @@ async function Suggestions({ summary, labels, history }: Loading) {
         </ul>
       </Card>
     </section>
+  );
+}
+
+// Money saved up in the bank for a goal or an ongoing purpose (TD-21). Closed
+// funds are kept for their history, under the open ones.
+function Funds({ funds, held, startDay }: { funds: FundRowState[]; held: number; startDay: number }) {
+  const open = funds.filter((s) => !s.closedAt);
+  const closed = funds.filter((s) => s.closedAt).reverse();
+  return (
+    <section id="funds" className="scroll-mt-6">
+      <div className="mb-3 flex min-h-11 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">Funds</h2>
+          {held > 0 && (
+            <p className="text-sm text-muted tabular-nums">
+              <span className="text-planned">{formatINR(held)}</span> saved up, not free to spend
+            </p>
+          )}
+        </div>
+        <Link href="/more/planned/new?save=up" className="flex h-11 shrink-0 items-center text-sm font-medium text-accent">
+          New fund
+        </Link>
+      </div>
+      {funds.length === 0 ? (
+        <Card className="p-6 text-center">
+          <p className="font-medium">Saving up for something?</p>
+          <p className="mt-1 text-sm text-muted">
+            Spread a big purchase over a few months, or keep money for clothes or trips. It stays in your bank, and
+            each month&rsquo;s share is kept out of what&rsquo;s free to spend.
+          </p>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {open.length > 0 && <FundList funds={open} startDay={startDay} />}
+          {closed.length > 0 && (
+            <div>
+              <h3 className="mb-2 px-1 text-sm font-medium text-muted">Closed</h3>
+              <FundList funds={closed.slice(0, 5)} startDay={startDay} />
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FundList({ funds, startDay }: { funds: FundRowState[]; startDay: number }) {
+  return (
+    <Card>
+      <ul className="divide-y divide-line">
+        {funds.map((s) => (
+          <li key={s.fund.id}>
+            <Link href={`/more/planned/funds/${s.fund.id}`} className={listItem}>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{s.fund.name}</p>
+                <p className="truncate text-sm text-muted">{fundDetail(s, startDay)}</p>
+              </div>
+              <div className="shrink-0 text-right tabular-nums">
+                <p className={`font-medium ${s.closedAt ? "text-muted" : ""}`}>{formatINR(s.balance)}</p>
+                {s.fund.kind === "goal" && !s.closedAt && (
+                  <p className="text-sm text-muted">of {formatINR(s.fund.target ?? 0)}</p>
+                )}
+              </div>
+              <ChevronRightIcon className="-mr-1 size-5 shrink-0 text-muted" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

@@ -31,6 +31,8 @@ export type Transaction = {
   // Only recurring commitments and their insights read these (FR-6, INS-09).
   note?: string | null;
   recurring_id?: string | null;
+  // The fund it was paid from or went back to (TD-21).
+  fund_id?: string | null;
 };
 
 export type BudgetBucket = {

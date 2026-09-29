@@ -1,4 +1,5 @@
 import { daysElapsed, periodLength, recentPeriods, type Period } from "./dates";
+import { isFundContribution, NO_FUNDS, withFunds, type FundBudget } from "./funds";
 import { everyday } from "./insights";
 import { stillToPay } from "./recurring";
 import { assertPaise } from "./money";
@@ -159,23 +160,31 @@ export function budgetAdherence(
   today: string,
   historyMonths = 6,
   planned?: PlannedPayments,
+  // Money going into funds counts in their buckets, and what funds covered
+  // doesn't count again (TD-21).
+  funds: FundBudget = NO_FUNDS,
 ): { base: number; buckets: BucketAdherence[]; unassigned: number } {
+  const counted = withFunds(transactions, funds);
   const month = (period: Period) => {
     const base = budgetBase(rule, periodTotals(transactions, accountsById, period).income);
     return {
       period,
       base,
       targets: bucketTargets(base, rule.buckets),
-      actuals: bucketActuals(transactions, rule, accountsById, period),
+      actuals: bucketActuals(counted, rule, accountsById, period),
     };
   };
   const now = month(current);
   const past = recentPeriods(current, historyMonths + 1).slice(0, -1).map(month);
   const elapsed = daysElapsed(current, today);
   const length = periodLength(current);
-  const plannedPaid = planned
-    ? bucketActuals(transactions.filter(planned.isPlanned), rule, accountsById, current).byBucket
-    : new Map<string, number>();
+  // Money into funds is known in advance too, so it isn't projected at a pace.
+  const plannedPaid = bucketActuals(
+    counted.filter((t) => isFundContribution(t) || (planned?.isPlanned(t) ?? false)),
+    rule,
+    accountsById,
+    current,
+  ).byBucket;
   const plannedLeft = planned
     ? bucketActuals(planned.upcoming, rule, accountsById, current).byBucket
     : new Map<string, number>();

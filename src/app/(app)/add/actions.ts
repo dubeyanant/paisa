@@ -93,7 +93,7 @@ export async function deleteEntries(ids: string[]): Promise<EntryResult> {
 
 function saveErrorMessage(code: string | undefined, message: string) {
   // A foreign key: the account or category was deleted meanwhile.
-  if (code === "23503") return "That account or category no longer exists. Reload and try again.";
+  if (code === "23503") return "That account, category or fund no longer exists. Reload and try again.";
   console.error("Saving an entry failed:", code, message);
   return "Couldn't save. Your entry is still here, so try again.";
 }

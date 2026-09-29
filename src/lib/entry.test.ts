@@ -143,6 +143,7 @@ describe("parseEntry", () => {
           occurred_at: "2026-09-29T06:30:00.000Z",
           is_planned: false,
           bucket_override_id: null,
+          fund_id: null,
         },
       ],
       tagIds: [],
@@ -191,6 +192,18 @@ describe("parseEntry", () => {
     const transfer = parseEntry({ ...base, kind: "transfer", to_account_id: CARD, bucket_override_id: WANTS }, now);
     expect(transfer).toMatchObject({ ok: true, rows: [{ bucket_override_id: null }] });
     expect(parseEntry({ ...base, bucket_override_id: "nope" }, now).ok).toBe(false);
+  });
+
+  test("an expense or refund that has happened can use a fund (TD-21)", () => {
+    const CLOTHES = "00000000-0000-4000-8000-0000000000c1";
+    expect(parseEntry({ ...base, fund_id: CLOTHES }, now)).toMatchObject({ ok: true, rows: [{ fund_id: CLOTHES }] });
+    expect(parseEntry({ ...base, kind: "refund", fund_id: CLOTHES }, now)).toMatchObject({ ok: true, rows: [{ fund_id: CLOTHES }] });
+    expect(parseEntry({ ...base, kind: "transfer", to_account_id: CARD, fund_id: CLOTHES }, now)).toEqual({
+      ok: false,
+      error: "Only an expense or a refund can use a fund.",
+    });
+    expect(parseEntry({ ...base, occurred_at: "2026-10-01T09:00", fund_id: CLOTHES }, now)).toMatchObject({ ok: false });
+    expect(parseEntry({ ...base, fund_id: "nope" }, now).ok).toBe(false);
   });
 
   test("a transfer has no category, and a card payment is one (FR-3 AC1)", () => {
