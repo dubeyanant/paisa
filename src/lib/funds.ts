@@ -173,29 +173,28 @@ export function monthChoices(from: Period, count = MAX_GOAL_MONTHS): { value: st
 }
 
 // A fund's standing in a few words, for lists: "₹15,000 this month · 3 months
-// left", "₹2,000 a month, up to ₹5,000", "Bought 10 Dec".
+// left", "Saved up · ₹18,000 spent", "₹2,000 a month, up to ₹5,000".
 export function fundDetail(state: FundState, startDay: number): string {
   const { fund } = state;
-  if (state.closedAt) return boughtWith(state) ? "Bought" : "Closed";
+  if (state.closedAt) return "Closed";
   if (fund.kind === "goal") {
+    const spent = state.spent > 0 ? ` · ${formatINR(state.spent)} spent` : "";
     if (state.monthsLeft === 0) {
-      return state.balance >= (fund.target ?? 0) ? "Saved up" : `Saving ended ${monthName(budgetMonthOf(fund.ends_on!, startDay))}`;
+      const end = state.saved >= (fund.target ?? 0) ? "Saved up" : `Saving ended ${monthName(budgetMonthOf(fund.ends_on!, startDay))}`;
+      return end + spent;
     }
     const left = `${state.monthsLeft} ${state.monthsLeft === 1 ? "month" : "months"} left`;
-    return state.thisMonth > 0 ? `${formatINR(state.thisMonth)} this month · ${left}` : left;
+    return (state.thisMonth > 0 ? `${formatINR(state.thisMonth)} this month · ${left}` : left) + spent;
   }
   if (!fund.monthly_amount) return fund.cap ? `Up to ${formatINR(fund.cap)}` : "Added by hand";
   const monthly = `${formatINR(fund.monthly_amount)} a month`;
   return fund.cap ? `${monthly}, up to ${formatINR(fund.cap)}` : monthly;
 }
 
-// Whether a goal closed at its purchase rather than by hand.
-export function boughtWith(state: FundState): boolean {
-  return state.events.some((e) => e.type === "spend" && e.at === state.closedAt && e.transaction.kind === "expense");
-}
-
-// For a goal, "₹30,000 of ₹60,000"; for an ongoing fund, just what it holds.
+// For a target fund nothing has been spent from, "₹30,000 of ₹60,000";
+// otherwise just what it holds.
 export function fundHeld(state: FundState): string {
   const held = formatINR(state.balance);
-  return state.fund.kind === "goal" && !state.closedAt ? `${held} of ${formatINR(state.fund.target ?? 0)}` : held;
+  const saving = state.fund.kind === "goal" && !state.closedAt && state.spent === 0;
+  return saving ? `${held} of ${formatINR(state.fund.target ?? 0)}` : held;
 }

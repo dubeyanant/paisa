@@ -72,6 +72,9 @@ only what a fund holds is kept out of available to spend.
    Add and edit take "From fund". Home shows a Funds line under the budget and "In funds"
    under available to spend. Budget counts money into funds, and pace leaves out what funds
    paid for. Pushed once step 1 is in `main`.
+3. **Owner's review:** the two kinds are a target fund (a guitar: a set amount over some
+   months) and a recurring fund (clothes: a monthly amount up to a limit, filling back up
+   after spends). Funds stay open after spends until closed by hand.
 
 ## Step 9 in detail
 

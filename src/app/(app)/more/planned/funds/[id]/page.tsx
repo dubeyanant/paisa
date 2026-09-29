@@ -8,9 +8,9 @@ import { getActiveRule } from "@/lib/data/budget";
 import { getLabels } from "@/lib/data/entries";
 import { getMoneySummary } from "@/lib/data/summary";
 import { budgetMonthOf, istDate, istStartOf } from "@/lib/finance/dates";
-import { balanceBefore, type FundEvent } from "@/lib/finance/funds";
+import { savedBefore, type FundEvent } from "@/lib/finance/funds";
 import { formatINR } from "@/lib/finance/money";
-import { boughtWith, fundDetail, monthChoices, monthName } from "@/lib/funds";
+import { fundDetail, monthChoices, monthName } from "@/lib/funds";
 import { dayInSentence } from "@/lib/recurring";
 import { CloseOrDelete, MoveMoney } from "../fund-actions";
 import { FundForm } from "../fund-form";
@@ -33,12 +33,10 @@ export default async function FundPage({ params }: PageProps<"/more/planned/fund
   const bucket = rule?.buckets.find((b) => b.id === fund.bucket_id)?.name;
   const subById = new Map(labels.subcategories.map((s) => [s.id, s.name]));
   const paidFor = state.events.some((e) => e.type === "spend");
-  const progress = goal && fund.target ? Math.min(state.balance / fund.target, 1) : 0;
-  // For the form's preview: held before this month's share, and added since.
-  const before = balanceBefore(state, istStartOf(month.start));
-  const status = state.closedAt
-    ? `${boughtWith(state) ? "Bought" : "Closed"} ${dayInSentence(istDate(state.closedAt), today)}`
-    : fundDetail(state, startDay);
+  const progress = goal && fund.target ? Math.min(state.saved / fund.target, 1) : 0;
+  // For the form's preview: put in before this month's share, and since.
+  const before = started ? savedBefore(state, istStartOf(month.start)) : state.saved;
+  const status = state.closedAt ? `Closed ${dayInSentence(istDate(state.closedAt), today)}` : fundDetail(state, startDay);
 
   return (
     <>
@@ -49,7 +47,9 @@ export default async function FundPage({ params }: PageProps<"/more/planned/fund
             <p className="text-sm text-muted">{open ? "Held for it" : "Held"}</p>
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
               <span className={open ? "text-planned" : ""}>{formatINR(state.balance)}</span>
-              {goal && open && <span className="text-base font-normal text-muted"> of {formatINR(fund.target ?? 0)}</span>}
+              {goal && open && state.spent === 0 && (
+                <span className="text-base font-normal text-muted"> of {formatINR(fund.target ?? 0)}</span>
+              )}
             </p>
             {goal && open && (
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-foreground/[0.08]" aria-hidden>
@@ -61,10 +61,21 @@ export default async function FundPage({ params }: PageProps<"/more/planned/fund
               {goal && open && state.monthsLeft > 0 && ` · until ${monthName(budgetMonthOf(fund.ends_on!, startDay))}`}
               {bucket && ` · counts in ${bucket}`}
             </p>
+            {goal && open && state.spent > 0 && (
+              <p className="mt-1 text-sm text-muted tabular-nums">
+                {formatINR(state.saved)} of {formatINR(fund.target ?? 0)} saved
+              </p>
+            )}
             {open && (
               <p className="mt-3 text-sm text-muted">
-                The money stays in your bank, but isn&rsquo;t counted as free to spend. To pay from it, choose{" "}
-                <span className="font-medium text-foreground">From fund</span> when you add the expense.
+                {goal && state.spent > 0 ? (
+                  "Bought what you saved for? Close the fund to stop saving, and what's left becomes free to spend."
+                ) : (
+                  <>
+                    The money stays in your bank, but isn&rsquo;t counted as free to spend. To pay from it, choose{" "}
+                    <span className="font-medium text-foreground">From fund</span> when you add the expense.
+                  </>
+                )}
               </p>
             )}
           </Card>
@@ -77,9 +88,8 @@ export default async function FundPage({ params }: PageProps<"/more/planned/fund
               <FundForm
                 key={JSON.stringify(fund)}
                 fund={fund}
-                balance={state.balance}
                 before={before}
-                extra={state.balance - before - state.thisMonth}
+                extra={started ? state.saved - before - state.thisMonth : 0}
                 started={started}
                 buckets={rule?.buckets ?? []}
                 months={monthChoices(month)}

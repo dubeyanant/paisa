@@ -3,12 +3,12 @@ import { bucketActuals, budgetAdherence } from "./budget";
 import { budgetMonthOf, istStartOf } from "./dates";
 import { account, at, byId, tx } from "./fixtures";
 import {
-  balanceBefore,
   finishedMonths,
   fundBudget,
   fundState,
   fundStates,
   heldInFunds,
+  savedBefore,
   withoutCovered,
   type Fund,
   type FundMove,
@@ -81,22 +81,34 @@ describe("a goal", () => {
     expect(s.balance).toBe(6000000);
   });
 
-  test("bought for less: the purchase comes from the goal, which closes and frees the rest", () => {
-    const buy = spend("phone", 4000000, "2026-12-10");
-    const s = fundState(phone, [], [buy], 1, noon("2027-01-20"));
-    expect(s.events.map((e) => e.type)).toEqual(["monthly", "monthly", "monthly", "spend", "release"]);
+  test("stays open after spends, and keeps saving toward its target without refilling", () => {
+    // ₹40,000 spent in December of the ₹45,000 saved; January still puts in its ₹15,000.
+    const s = fundState(phone, [], [spend("phone", 4000000, "2026-12-10")], 1, noon("2027-01-20"));
+    expect(s.events.map((e) => e.type)).toEqual(["monthly", "monthly", "monthly", "spend", "monthly"]);
     expect(s.events[3]).toMatchObject({ covered: 4000000 });
-    expect(s.events[4]).toMatchObject({ amount: -500000 });
-    expect(s.closedAt).toBe(buy.occurred_at);
-    expect(s.balance).toBe(0);
-    expect(s.thisMonth).toBe(0); // nothing goes in after the purchase
+    expect(s.closedAt).toBeNull();
+    expect(s.saved).toBe(6000000);
+    expect(s.spent).toBe(4000000);
+    expect(s.balance).toBe(2000000);
+    // Once the target is in, nothing more goes in, however much is spent.
+    const after = fundState(phone, [], [spend("phone", 6000000, "2027-01-25")], 1, noon("2027-03-05"));
+    expect(monthly(after)).toEqual([1500000, 1500000, 1500000, 1500000]);
+    expect(after.balance).toBe(0);
   });
 
-  test("bought early or for more: the goal covers what it holds, and the rest counts as usual", () => {
+  test("spent early or for more: it covers what it holds, and the rest counts as usual", () => {
     const s = fundState(phone, [], [spend("phone", 7000000, "2026-11-10")], 1, noon("2026-12-15"));
     expect(s.events.find((e) => e.type === "spend")).toMatchObject({ covered: 3000000 });
+    expect(monthly(s)).toEqual([1500000, 1500000, 1500000]);
+    expect(s.balance).toBe(1500000);
+  });
+
+  test("closing it by hand frees what it holds", () => {
+    const s = fundState({ ...phone, closed_at: at("2026-12-20") }, [], [spend("phone", 4000000, "2026-12-10")], 1, noon("2027-01-20"));
+    expect(s.events.map((e) => e.type)).toEqual(["monthly", "monthly", "monthly", "spend", "release"]);
+    expect(s.events[4]).toMatchObject({ amount: -500000 });
     expect(s.balance).toBe(0);
-    expect(monthly(s)).toEqual([1500000, 1500000]);
+    expect(s.thisMonth).toBe(0);
   });
 
   test("a budget month starting on the 21st", () => {
@@ -108,8 +120,8 @@ describe("a goal", () => {
   });
 });
 
-describe("an ongoing fund", () => {
-  test("saves its monthly amount up to its cap, and again once spent from", () => {
+describe("a recurring fund", () => {
+  test("saves its monthly amount up to its cap, and fills back up once spent from", () => {
     const s = fundState(clothes, [], [spend("clothes", 300000, "2027-01-10")], 1, noon("2027-02-05"));
     // October ₹2,000, November ₹2,000, December ₹1,000 to reach ₹5,000, January nothing.
     // After ₹3,000 of clothes, February tops it up by ₹2,000 of the ₹3,000 of room.
@@ -162,11 +174,13 @@ describe("an ongoing fund", () => {
 
 describe("with the rest of the money", () => {
   const spends = [spend("phone", 4000000, "2026-12-10"), spend("clothes", 300000, "2026-11-10")];
-  const states = fundStates([phone, clothes], [], spends, 1, noon("2026-12-15"));
+  // The phone fund is closed once bought, freeing the ₹5,000 left.
+  const closedPhone = { ...phone, closed_at: at("2026-12-12") };
+  const states = fundStates([closedPhone, clothes], [], spends, 1, noon("2026-12-15"));
 
   test("each fund gets its own moves and spends, and their balances are held back", () => {
     const [p, c] = states;
-    expect(p.closedAt).not.toBeNull();
+    expect(p.balance).toBe(0);
     expect(c.balance).toBe(100000 + 200000); // ₹4,000 by November, ₹3,000 spent, then December's ₹2,000
     expect(heldInFunds(states)).toBe(300000);
   });
@@ -183,8 +197,8 @@ describe("with the rest of the money", () => {
     const coffee = tx({ kind: "expense", amount: 20000, subcategory_id: "gadgets", occurred_at: at("2026-12-11") });
     const december = budgetMonthOf("2026-12-15");
 
-    // ₹15,000 into the phone and ₹2,000 into clothes, minus ₹5,000 freed at
-    // the purchase, and the coffee. The phone itself was paid from the fund.
+    // ₹15,000 into the phone and ₹2,000 into clothes, minus ₹5,000 freed when
+    // the phone fund closed, and the coffee. The phone itself was paid from the fund.
     const counted = [...withoutCovered([...spends, coffee], budget), ...budget.contributions];
     expect(bucketActuals(counted, rule, accounts, december).byBucket.get("wants")).toBe(1500000 + 200000 - 500000 + 20000);
 
@@ -219,10 +233,10 @@ describe("with the rest of the money", () => {
   });
 });
 
-test("balanceBefore is what the fund held just before a moment", () => {
-  const s = fundState(phone, [move("phone", 500000, "2026-11-05")], [], 1, noon("2026-11-15"));
-  expect(balanceBefore(s, istStartOf("2026-11-01"))).toBe(1500000);
-  expect(balanceBefore(s, noon("2026-11-10"))).toBe(1500000 + 1500000 + 500000);
+test("savedBefore is what the fund had put in just before a moment, spends aside", () => {
+  const s = fundState(phone, [move("phone", 500000, "2026-11-05")], [spend("phone", 100000, "2026-11-07")], 1, noon("2026-11-15"));
+  expect(savedBefore(s, istStartOf("2026-11-01"))).toBe(1500000);
+  expect(savedBefore(s, noon("2026-11-10"))).toBe(1500000 + 1500000 + 500000);
 });
 
 test("finishedMonths keeps the scheduled months before this one", () => {

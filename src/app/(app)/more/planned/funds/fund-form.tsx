@@ -13,10 +13,10 @@ export type FundFormProps = {
   buckets: { id: string; name: string; holds_savings: boolean }[];
   // The budget months a goal can use, this one first.
   months: { value: string; label: string }[];
-  // Editing an existing fund, which holds `balance` now. It held `before`
-  // just before this month's share, and `extra` came in after it...
+  // Editing an existing fund. A target fund had put in `before` just before
+  // this month's share (all of it, if it hasn't started), and `extra` came in
+  // after it...
   fund?: FundRow;
-  balance?: number;
   before?: number;
   extra?: number;
   // ...whose schedule has started, so a goal keeps its first month.
@@ -69,7 +69,7 @@ function previewText({ first, then }: { first: number; then: number | null }, mo
 }
 
 export function FundForm(props: FundFormProps) {
-  const { fund, buckets, months, balance = 0, before = 0, extra = 0, started = false } = props;
+  const { fund, buckets, months, before = 0, extra = 0, started = false } = props;
   const router = useRouter();
   const [values, setValues] = useState(() => startingValues(props));
   const [error, setError] = useState<string>();
@@ -94,9 +94,9 @@ export function FundForm(props: FundFormProps) {
   const monthsLeft = months.findIndex((m) => m.value === values.to_month) - months.findIndex((m) => m.value === firstMonth) + 1;
   const now = started || firstMonth === months[0]?.value;
   const putIn = fund ? 0 : (parseRupees(values.put_in) ?? 0);
-  const preview = started
+  const preview = fund
     ? goalPreview(target, before, extra, monthsLeft)
-    : goalPreview(target, fund ? balance : now ? 0 : putIn, now ? putIn : 0, monthsLeft);
+    : goalPreview(target, now ? 0 : putIn, now ? putIn : 0, monthsLeft);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -165,14 +165,14 @@ export function FundForm(props: FundFormProps) {
                   values.kind === k ? "bg-surface text-foreground shadow-sm" : "text-muted hover:text-foreground"
                 }`}
               >
-                {k === "goal" ? "One purchase" : "Ongoing"}
+                {k === "goal" ? "Target" : "Recurring"}
               </button>
             ))}
           </div>
           <p className="mt-2 text-sm text-muted">
             {goal
-              ? "Save a set amount over a few months, then buy the thing from it."
-              : "Keep money for a kind of spending, like clothes or trips, and spend from it whenever."}
+              ? "Save a set amount over a few months for something you'll buy, like a guitar."
+              : "Fill up to a limit each month for spending that comes and goes, like clothes. It fills back up after you spend."}
           </p>
         </div>
       )}
@@ -221,7 +221,7 @@ export function FundForm(props: FundFormProps) {
             (monthly_amount) => set({ monthly_amount }),
             "Goes in on the first day of each budget month.",
           )}
-          {rupees("Up to", values.cap, (cap) => set({ cap }), "It stops growing here until you spend from it.")}
+          {rupees("Up to", values.cap, (cap) => set({ cap }), "It stops filling here, and fills back up after you spend from it.")}
         </>
       )}
 

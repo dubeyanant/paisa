@@ -257,7 +257,7 @@ function FundList({ funds, startDay }: { funds: FundRowState[]; startDay: number
               </div>
               <div className="shrink-0 text-right tabular-nums">
                 <p className={`font-medium ${s.closedAt ? "text-muted" : ""}`}>{formatINR(s.balance)}</p>
-                {s.fund.kind === "goal" && !s.closedAt && (
+                {s.fund.kind === "goal" && !s.closedAt && s.spent === 0 && (
                   <p className="text-sm text-muted">of {formatINR(s.fund.target ?? 0)}</p>
                 )}
               </div>

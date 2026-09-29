@@ -2,17 +2,18 @@ import { budgetMonthOf, istDate, istStartOf, periodContains, type Period } from 
 import { assertPaise } from "./money";
 import type { Transaction } from "./types";
 
-// Funds (TD-21): money kept in the bank for a goal or an ongoing purpose. A
-// fund's balance is what went in (each budget month's amount, and money added
-// or taken out by hand) minus what it paid for. The balance is held back from
-// available to spend, and money counts in the fund's budget bucket when it
-// goes in, not when it's spent.
+// Funds (TD-21): money kept in the bank for a target or a recurring purpose.
+// A fund's balance is what went in (each budget month's amount, and money
+// added or taken out by hand) minus what it paid for. The balance is held back
+// from available to spend, and money counts in the fund's budget bucket when
+// it goes in, not when it's spent. A fund stays open until it's closed by hand.
 
 export type Fund = {
   id: string;
-  // A goal saves `target` over the months up to the one with ends_on, then
-  // pays for one purchase. An ongoing fund saves monthly_amount every month,
-  // up to `cap`, and pays for any number of spends.
+  // A target fund ("goal") puts in `target` over the months up to the one
+  // with ends_on; spending from it doesn't make it save more. A recurring fund
+  // ("ongoing") puts in monthly_amount every month while it holds less than
+  // `cap`, so it fills back up after spends.
   kind: "goal" | "ongoing";
   bucket_id: string | null;
   target: number | null;
@@ -42,7 +43,10 @@ export type FundState = {
   fund: Fund;
   // Held now. Never below zero, since a fund only covers what it holds.
   balance: number;
-  // When it closed: by hand, or at a goal's purchase. Null while open.
+  // Put in so far (by month and by hand), and paid for from it.
+  saved: number;
+  spent: number;
+  // When it was closed by hand. Null while open.
   closedAt: string | null;
   // This budget month's scheduled amount, 0 if there's none.
   thisMonth: number;
@@ -102,6 +106,8 @@ export function fundState(
 
   const events: FundEvent[] = [];
   let balance = 0;
+  let saved = 0;
+  let spent = 0;
   let closedAt: string | null = null;
   let thisMonth = 0;
   const close = (at: string) => {
@@ -118,9 +124,8 @@ export function fundState(
       let covered = 0;
       if (!closedAt) covered = t.kind === "expense" ? Math.min(t.amount, Math.max(balance, 0)) : -t.amount;
       balance -= covered;
+      spent += covered;
       events.push({ type: "spend", at: item.at, transaction: t, covered });
-      // A goal's purchase is its first expense.
-      if (!closedAt && fund.kind === "goal" && t.kind === "expense") close(item.at);
       continue;
     }
     if (closedAt) continue;
@@ -129,12 +134,14 @@ export function fundState(
     } else if (item.type === "move") {
       assertPaise(item.move.amount);
       balance += item.move.amount;
+      saved += item.move.amount;
       events.push({ type: "move", at: item.at, amount: item.move.amount, is_monthly: item.move.is_monthly });
     } else {
-      const amount = scheduledAmount(fund, balance, item.period, last);
+      const amount = scheduledAmount(fund, fund.kind === "goal" ? saved : balance, item.period, last);
       if (item.period.start === current.start) thisMonth = amount;
       if (amount > 0) {
         balance += amount;
+        saved += amount;
         events.push({ type: "monthly", at: item.at, amount });
       }
     }
@@ -142,20 +149,22 @@ export function fundState(
 
   const monthsLeft =
     last && !closedAt ? Math.max(monthIndex(last.start) - monthIndex(current.start) + 1, 0) : 0;
-  return { fund, balance: Math.max(balance, 0), closedAt, thisMonth, monthsLeft, events };
+  return { fund, balance: Math.max(balance, 0), saved, spent, closedAt, thisMonth, monthsLeft, events };
 }
 
-// What goes in at the start of `period`, given the balance just before.
-function scheduledAmount(fund: Fund, balance: number, period: Period, last: Period | null): number {
+// What goes in at the start of `period`. `sofar` is what a target fund has
+// put in so far (spends don't count, so it doesn't refill), or what a
+// recurring fund holds just before.
+function scheduledAmount(fund: Fund, sofar: number, period: Period, last: Period | null): number {
   if (fund.kind === "goal") {
-    const remaining = (fund.target ?? 0) - balance;
+    const remaining = (fund.target ?? 0) - sofar;
     if (remaining <= 0 || !last) return 0;
     const monthsLeft = monthIndex(last.start) - monthIndex(period.start) + 1;
     return Math.min(remaining, ceilToRupee(remaining, monthsLeft));
   }
   const monthly = fund.monthly_amount ?? 0;
   if (fund.cap === null) return monthly;
-  return Math.max(Math.min(monthly, fund.cap - balance), 0);
+  return Math.max(Math.min(monthly, fund.cap - sofar), 0);
 }
 
 // Every fund's state. `spends` may hold transactions of any fund.
@@ -177,14 +186,14 @@ export function fundStates(
   );
 }
 
-// What the fund held just before `moment`.
-export function balanceBefore(state: FundState, moment: Date): number {
-  let balance = 0;
+// What the fund had put in just before `moment`, by month and by hand.
+export function savedBefore(state: FundState, moment: Date): number {
+  let saved = 0;
   for (const e of state.events) {
     if (Date.parse(e.at) >= moment.getTime()) break;
-    balance += e.type === "spend" ? -e.covered : e.amount;
+    if (e.type === "monthly" || e.type === "move") saved += e.amount;
   }
-  return balance;
+  return saved;
 }
 
 // Held back from available to spend.
