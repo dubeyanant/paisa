@@ -8,7 +8,8 @@ import { parseRupees } from "@/lib/finance/money";
 import { confirmedAt, isScheduledOn, parseCommitment, type CommitmentInput } from "@/lib/recurring";
 import { createClient } from "@/lib/supabase/server";
 
-// Recurring commitments and their due dates (FR-6).
+// Planned payments (FR-6, TD-18): repeating ones (commitments) and their due
+// dates, and one-off planned entries.
 
 export type RecurringResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -43,6 +44,33 @@ export async function updateCommitment(id: string, input: CommitmentInput): Prom
   if (data.length === 0) return { ok: false, error: MISSING };
   revalidatePath("/", "layout");
   return { ok: true, id };
+}
+
+// A payment planned once: a planned entry on the due date, at noon IST. It
+// counts in planned money until it's confirmed from Due now (BR-7).
+export async function createPlannedOnce(input: CommitmentInput): Promise<RecurringResult> {
+  await requireUser();
+  const parsed = parseCommitment({ ...input, unit: "month", every: 1, ends_on: "" });
+  if (!parsed.ok) return parsed;
+  const { row } = parsed;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("transactions")
+    .insert({
+      kind: row.kind,
+      amount: row.amount,
+      account_id: row.account_id,
+      to_account_id: row.to_account_id,
+      subcategory_id: row.subcategory_id,
+      note: row.name,
+      occurred_at: new Date(`${row.first_due_on}T12:00:00+05:30`).toISOString(),
+      is_planned: true,
+    })
+    .select("id")
+    .single();
+  if (error) return failed("Planning a payment", error);
+  revalidatePath("/", "layout");
+  return { ok: true, id: data.id };
 }
 
 // A paused commitment has no due dates until it's resumed.

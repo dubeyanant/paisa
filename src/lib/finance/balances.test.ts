@@ -68,7 +68,8 @@ describe("balance summary", () => {
     ]);
     expect(balanceSummary(accounts, balances)).toEqual({
       available: 5050000,
-      blocked: 0,
+      setAside: 0,
+      planned: 0,
       cardDues: 1234567,
       cardCredit: 0,
       savings: 2500000,
@@ -79,24 +80,25 @@ describe("balance summary", () => {
     });
   });
 
-  test("blocked money counts as owned, but not as free to spend", () => {
+  test("set-aside and planned money count as owned, but not as free to spend", () => {
     const accounts = [
       account("bank", "bank"),
-      { ...account("blocked", "wallet"), is_blocked: true },
+      { ...account("fund", "wallet"), is_blocked: true },
       { ...account("trip-fund", "wallet"), is_blocked: true },
       account("card", "credit_card"),
     ];
     const balances = new Map([
       ["bank", 11500000],
-      ["blocked", 2500000],
+      ["fund", 2500000],
       ["trip-fund", 1000000],
       ["card", -500000],
     ]);
-    expect(balanceSummary(accounts, balances)).toMatchObject({
+    expect(balanceSummary(accounts, balances, 1200000)).toMatchObject({
       available: 15000000,
-      blocked: 3500000,
+      setAside: 3500000,
+      planned: 1200000,
       cardDues: 500000,
-      spendable: 15000000 - 3500000 - 500000,
+      spendable: 15000000 - 3500000 - 500000 - 1200000,
       netPosition: 15000000 - 500000,
     });
   });

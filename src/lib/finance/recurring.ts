@@ -1,6 +1,6 @@
 import { addDays, istDate, type Period } from "./dates";
 import { assertPaise } from "./money";
-import type { Commitment, Transaction } from "./types";
+import type { Account, Commitment, Transaction } from "./types";
 
 // Recurring commitments (FR-6). A commitment is a template: its due dates come
 // from the schedule, and a due date is paid once a transaction linked to the
@@ -173,6 +173,40 @@ export function reservedIn(
   today: string,
 ): number {
   return outgoing(commitments, transactions, today, period.end).reduce((sum, i) => sum + i.amount, 0);
+}
+
+// Planned money still to pay this budget month that will take money out of
+// bank and cash (TD-18): reservedIn(), leaving out what doesn't touch the money
+// available to spend:
+// - payments from a set-aside account (a sinking fund pays its own), or from a
+//   savings, deposit or loan account
+// - transfers into a credit card (card dues already count) or into an ordinary
+//   bank or wallet account (the money stays available)
+// A planned expense on a credit card counts: it becomes card dues.
+export function plannedToPay(
+  commitments: Commitment[],
+  transactions: Transaction[],
+  accountsById: Map<string, Account>,
+  period: Period,
+  today: string,
+): number {
+  const commitmentById = new Map(commitments.map((c) => [c.id, c]));
+  const transactionById = new Map(transactions.map((t) => [t.id, t]));
+  const spendable = (a: Account | undefined) =>
+    a !== undefined && (a.type === "bank" || a.type === "wallet") && !a.is_blocked;
+  let total = 0;
+  for (const item of outgoing(commitments, transactions, today, period.end)) {
+    const source = item.transaction_id ? transactionById.get(item.transaction_id) : commitmentById.get(item.commitment_id!);
+    if (!source) continue;
+    const from = accountsById.get(source.account_id);
+    if (!from || (!spendable(from) && from.type !== "credit_card")) continue;
+    if (source.kind === "transfer") {
+      const to = accountsById.get(source.to_account_id ?? "");
+      if (!to || to.type === "credit_card" || spendable(to)) continue;
+    }
+    total += item.amount;
+  }
+  return total;
 }
 
 // What a commitment costs per month and per year, rounded to the paisa (INS-09).

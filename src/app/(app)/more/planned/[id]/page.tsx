@@ -11,9 +11,9 @@ import { CommitmentForm } from "../commitment-form";
 import { capitalise } from "../rows";
 import { Skipped } from "./skipped";
 
-export const metadata: Metadata = { title: "Commitment · Paisa" };
+export const metadata: Metadata = { title: "Planned payment · Paisa" };
 
-export default async function CommitmentPage({ params }: PageProps<"/more/recurring/[id]">) {
+export default async function CommitmentPage({ params }: PageProps<"/more/planned/[id]">) {
   const { id } = await params;
   const [commitment, payments, labels] = await Promise.all([getCommitment(id), getCommitmentPayments(id), getLabels()]);
   const today = istDate(new Date());
@@ -28,7 +28,7 @@ export default async function CommitmentPage({ params }: PageProps<"/more/recurr
 
   return (
     <>
-      <PageHeader title={commitment.name} back={{ href: "/more/recurring", label: "Back to recurring" }} />
+      <PageHeader title={commitment.name} back={{ href: "/more/planned", label: "Back to planned" }} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8">
         <div className="flex min-w-0 flex-col gap-6">
           <Card className="p-4 md:p-6">

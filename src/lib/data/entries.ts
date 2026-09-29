@@ -114,18 +114,19 @@ export async function getLabels(): Promise<Omit<EntryContext, "recent" | "tags">
   };
 }
 
-// The latest entries up to now, and the planned ones still to come.
+// The latest entries that have happened. Planned ones show under Planned.
 export async function getLatestEntries(limit = 20) {
   await requireUser();
   const supabase = await createClient();
-  const now = new Date().toISOString();
-  const [past, planned] = await Promise.all([
-    supabase.from("transactions").select(ENTRY_COLUMNS).lte("occurred_at", now).order("occurred_at", { ascending: false }).limit(limit),
-    supabase.from("transactions").select(ENTRY_COLUMNS).gt("occurred_at", now).order("occurred_at").limit(5),
-  ]);
-  if (past.error) throw past.error;
-  if (planned.error) throw planned.error;
-  return { latest: past.data.map(toEntry), planned: planned.data.map(toEntry) };
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(ENTRY_COLUMNS)
+    .eq("is_planned", false)
+    .lte("occurred_at", new Date().toISOString())
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return { latest: data.map(toEntry) };
 }
 
 export async function getEntry(id: string): Promise<Entry> {

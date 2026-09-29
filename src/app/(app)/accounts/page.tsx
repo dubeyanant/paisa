@@ -3,23 +3,25 @@ import Link from "next/link";
 import { ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { Amount, Card, PageHeader, buttonClass } from "@/components/ui";
 import { ACCOUNT_TYPES, isOwedType, ordinal } from "@/lib/accounts";
-import { listAccounts, type AccountWithBalance } from "@/lib/data/accounts";
-import { balanceSummary, cardOutstanding } from "@/lib/finance/balances";
+import type { AccountWithBalance } from "@/lib/data/accounts";
+import { getMoneySummary } from "@/lib/data/summary";
+import { cardOutstanding } from "@/lib/finance/balances";
+import { addDays } from "@/lib/finance/dates";
+import { dayInSentence } from "@/lib/recurring";
 import { formatINR } from "@/lib/finance/money";
 
 export const metadata: Metadata = { title: "Accounts · Paisa" };
 
 export default async function AccountsPage() {
-  const accounts = await listAccounts();
-  // Archived accounts still hold money (or debt), so they count in the summary.
-  const summary = balanceSummary(accounts, new Map(accounts.map((a) => [a.id, a.balance])));
+  const { summary, accounts, month, today } = await getMoneySummary();
   const active = accounts.filter((a) => !a.archived_at);
   const archived = accounts.filter((a) => a.archived_at);
 
   // A figure of ₹0 says nothing, so it isn't shown (TD-18).
   const tiles = [
-    { label: "Bank and cash", hint: "Blocked included", value: summary.available },
-    { label: "Blocked", hint: "Set aside to spend", value: summary.blocked },
+    { label: "Bank and cash", hint: "What the accounts hold", value: summary.available },
+    { label: "Planned", hint: `Still to pay by ${dayInSentence(addDays(month.end, -1), today)}`, value: summary.planned },
+    { label: "Set aside", hint: "Sinking funds", value: summary.setAside },
     { label: "Card dues", hint: "Owed on cards", value: summary.cardDues },
     { label: "Card credit", hint: "In your favour", value: summary.cardCredit },
     { label: "Savings", hint: "Savings and investments", value: summary.savings },
@@ -45,7 +47,7 @@ export default async function AccountsPage() {
         <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums md:text-4xl">
           <Amount value={summary.spendable} />
         </p>
-        <p className="mt-1 text-sm text-muted">Bank and cash, minus blocked money and card dues.</p>
+        <p className="mt-1 text-sm text-muted">Bank and cash, minus what&rsquo;s planned this month and card dues.</p>
         <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-4">
           {tiles.map((tile) => (
             <div key={tile.label} className="min-w-0">
@@ -117,7 +119,7 @@ function AccountGroup({ title, accounts }: { title?: string; accounts: AccountWi
 function AccountRow({ account }: { account: AccountWithBalance }) {
   const details = [];
   if (account.is_emergency_fund) details.push("Emergency fund");
-  if (account.is_blocked) details.push("Blocked");
+  if (account.is_blocked) details.push("Set aside");
   if (account.statement_day) details.push(`Statement on the ${ordinal(account.statement_day)}`);
   if (account.due_day) details.push(`Due on the ${ordinal(account.due_day)}`);
 
