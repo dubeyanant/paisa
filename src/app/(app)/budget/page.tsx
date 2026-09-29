@@ -4,7 +4,9 @@ import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { listAccounts } from "@/lib/data/accounts";
 import { getActiveRule, getFirstEntryDate, getTransactionsBetween } from "@/lib/data/budget";
 import { getBudgetMonthStartDay, getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
-import { formatShare, periodLabel, statusLabel, streakLabel } from "@/lib/budget";
+import { formatShare, headingLabel, periodLabel, statusLabel, streakLabel } from "@/lib/budget";
+import { filtersQuery } from "@/lib/entry-filters";
+import { ChevronRightIcon } from "@/components/icons";
 import { budgetAdherence, plannedPayments, type BucketAdherence } from "@/lib/finance/budget";
 import { budgetMonthOf, daysElapsed, istDate, periodLength, shiftBudgetMonth } from "@/lib/finance/dates";
 import { formatINR } from "@/lib/finance/money";
@@ -90,7 +92,12 @@ export default async function BudgetPage() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {buckets.map((b) => (
-            <BucketCard key={b.bucket.id} b={b} elapsed={daysElapsed(month, today) / periodLength(month)} />
+            <BucketCard
+              key={b.bucket.id}
+              b={b}
+              elapsed={daysElapsed(month, today) / periodLength(month)}
+              href={`/entries?${filtersQuery({ from: month.start, to: today, bucket: b.bucket.id })}`}
+            />
           ))}
         </div>
 
@@ -121,51 +128,60 @@ const STATUS_STYLE = {
   over: "bg-negative/10 text-negative",
 };
 
-function BucketCard({ b, elapsed }: { b: BucketAdherence; elapsed: number }) {
+// Tapping a bucket shows its entries this month.
+function BucketCard({ b, elapsed, href }: { b: BucketAdherence; elapsed: number; href: string }) {
   const savings = b.bucket.holds_savings;
   const filled = b.target > 0 ? Math.min(b.actual / b.target, 1) : b.actual > 0 ? 1 : 0;
   const streak = streakLabel(b);
+  const heading = headingLabel(b);
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate font-semibold">{b.bucket.name}</h3>
-          <p className="text-sm text-muted">{formatShare(b.bucket.share_bp)} target</p>
-        </div>
-        <span className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${STATUS_STYLE[b.status]}`}>
-          {statusLabel(b)}
-        </span>
-      </div>
-      <div>
-        <p className="tabular-nums">
-          <span className="text-xl font-semibold">{formatINR(b.actual)}</span>{" "}
-          <span className="text-sm text-muted">
-            {savings ? "saved" : "spent"} of {formatINR(b.target)}
+    <Link href={href} className="block rounded-2xl">
+      <Card className="flex flex-col gap-3 p-4 transition-colors hover:bg-foreground/[0.03]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate font-semibold">{b.bucket.name}</h3>
+            <p className="text-sm text-muted">{formatShare(b.bucket.share_bp)} target</p>
+          </div>
+          <span className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium ${STATUS_STYLE[b.status]}`}>
+            {statusLabel(b)}
           </span>
+        </div>
+        <div>
+          <p className="tabular-nums">
+            <span className="text-xl font-semibold">{formatINR(b.actual)}</span>{" "}
+            <span className="text-sm text-muted">
+              {savings ? "saved" : "spent"} of {formatINR(b.target)}
+            </span>
+          </p>
+          {/* The bar is how much of the target is used; the tick is how much of the month has gone. */}
+          <div className="relative mt-2 h-2 rounded-full bg-foreground/[0.08]" aria-hidden>
+            <div
+              className={`h-2 rounded-full ${b.status === "over" ? "bg-negative" : b.status === "at_risk" ? "bg-warning" : "bg-accent"}`}
+              style={{ width: `${filled * 100}%` }}
+            />
+            <div className="absolute -top-1 h-4 w-0.5 rounded bg-foreground/40" style={{ left: `calc(${elapsed * 100}% - 1px)` }} />
+          </div>
+        </div>
+        <dl className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="text-muted">{b.remaining >= 0 ? (savings ? "Still to save" : "Left") : savings ? "Ahead by" : "Over by"}</dt>
+            <dd className="font-medium tabular-nums">{formatINR(Math.abs(b.remaining))}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Of the base</dt>
+            <dd className="font-medium tabular-nums">
+              {b.shareOfBase === null ? "–" : formatShare(Math.round(b.shareOfBase * 10000))}
+            </dd>
+          </div>
+        </dl>
+        {heading && <p className="text-sm text-muted">{heading}</p>}
+        {streak && <p className="text-sm font-medium text-negative">{streak}</p>}
+        <p className="flex items-center gap-1 text-sm font-medium text-accent">
+          See entries
+          <ChevronRightIcon className="size-4" />
         </p>
-        {/* The bar is how much of the target is used; the tick is how much of the month has gone. */}
-        <div className="relative mt-2 h-2 rounded-full bg-foreground/[0.08]" aria-hidden>
-          <div
-            className={`h-2 rounded-full ${b.status === "over" ? "bg-negative" : b.status === "at_risk" ? "bg-warning" : "bg-accent"}`}
-            style={{ width: `${filled * 100}%` }}
-          />
-          <div className="absolute -top-1 h-4 w-0.5 rounded bg-foreground/40" style={{ left: `calc(${elapsed * 100}% - 1px)` }} />
-        </div>
-      </div>
-      <dl className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <dt className="text-muted">{b.remaining >= 0 ? (savings ? "Still to save" : "Left") : savings ? "Ahead by" : "Over by"}</dt>
-          <dd className="font-medium tabular-nums">{formatINR(Math.abs(b.remaining))}</dd>
-        </div>
-        <div>
-          <dt className="text-muted">Of the base</dt>
-          <dd className="font-medium tabular-nums">
-            {b.shareOfBase === null ? "–" : formatShare(Math.round(b.shareOfBase * 10000))}
-          </dd>
-        </div>
-      </dl>
-      {streak && <p className="text-sm font-medium text-negative">{streak}</p>}
-    </Card>
+      </Card>
+    </Link>
   );
 }
 

@@ -3,6 +3,7 @@
 // src/lib/finance/.
 
 import { streakLabel } from "@/lib/budget";
+import { hotEnough } from "@/lib/finance/alerts";
 import type { BucketAdherence } from "@/lib/finance/budget";
 import type { Commitment } from "@/lib/finance/types";
 import type { RecurringPayment } from "@/lib/finance/detection";
@@ -39,6 +40,13 @@ export function committedHeadline(c: CommittedVsFree): string {
   return `${formatINR(c.committed)} of your ${formatINR(c.income)} income this month goes to planned payments (${percent(c.committed / c.income)}).`;
 }
 
+// A month's savings rate, or null when it says nothing: no income, or spending
+// more than twice the income (a month with little income recorded makes rates
+// like -7,500%).
+export function sensibleRate(m: Pick<SavingsMonth, "rate">): number | null {
+  return m.rate !== null && m.rate >= -1 ? m.rate : null;
+}
+
 // INS-02 over finished months, oldest first: "You saved 23% last month
 // (₹19,000), down from 30% the month before."
 export function savingsHeadline(months: SavingsMonth[]): string {
@@ -46,14 +54,15 @@ export function savingsHeadline(months: SavingsMonth[]): string {
   const last = months[months.length - 1];
   const before = months.length > 1 ? months[months.length - 2] : undefined;
   if (last.rate === null) return "No income last month, so there's no savings rate.";
+  if (sensibleRate(last) === null) return `You spent ${formatINR(-last.saved)} more than you earned last month.`;
   const main =
     last.saved >= 0
       ? `You saved ${percent(last.rate)} last month (${formatINR(last.saved)})`
       : `You spent ${formatINR(-last.saved)} more than you earned last month`;
-  if (!before || before.rate === null) return `${main}.`;
-  const [a, b] = [Math.round(last.rate * 100), Math.round(before.rate * 100)];
+  if (!before || sensibleRate(before) === null) return `${main}.`;
+  const [a, b] = [Math.round(last.rate * 100), Math.round(before.rate! * 100)];
   if (a === b) return `${main}, the same as the month before.`;
-  return `${main}, ${a > b ? "up" : "down"} from ${percent(before.rate)} the month before.`;
+  return `${main}, ${a > b ? "up" : "down"} from ${percent(before.rate!)} the month before.`;
 }
 
 // INS-03: "Your emergency fund covers 2.5 months of expenses."
@@ -76,10 +85,10 @@ export function paceHeadline(
   const main =
     share === null ? `Day ${pace.day}: ${formatINR(pace.total.spent)} spent.` : `Day ${pace.day}: you've spent ${percent(share)} of a usual month.`;
   const hot = [...pace.byCategory]
-    .filter(([, p]) => p.runningHot)
+    .filter(([, p]) => hotEnough(p))
     .sort(([, a], [, b]) => b.spent - b.expected - (a.spent - a.expected))
     .map(([id]) => categoryName(id));
-  if (pace.total.runningHot) return `${main} You're running hot${hot.length ? `, most of all on ${hot[0]}` : ""}.`;
+  if (hotEnough(pace.total)) return `${main} You're running hot${hot.length ? `, most of all on ${hot[0]}` : ""}.`;
   if (hot.length === 1) return `${main} ${hot[0]} is running hot.`;
   if (hot.length > 1) return `${main} ${hot[0]} and ${hot.length - 1} more are running hot.`;
   return `${main} Every category is on pace.`;

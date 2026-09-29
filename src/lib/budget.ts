@@ -5,7 +5,7 @@
 import { ordinal } from "@/lib/accounts";
 import { bucketProblem, type BucketAdherence } from "@/lib/finance/budget";
 import { addDays, type Period } from "@/lib/finance/dates";
-import { parseRupees } from "@/lib/finance/money";
+import { formatINR, parseRupees } from "@/lib/finance/money";
 
 export type RuleBucketInput = {
   // Names the bucket within the form; an existing bucket's key is its id.
@@ -130,10 +130,27 @@ export function statusLabel(b: Pick<BucketAdherence, "status" | "bucket">): stri
   return "On track";
 }
 
-// "3rd month over" for a spending bucket, "2nd month short" for savings.
-export function streakLabel(b: Pick<BucketAdherence, "streak" | "bucket">): string | null {
-  if (b.streak < 2) return null;
-  return `${ordinal(b.streak)} month ${b.bucket.holds_savings ? "short" : "over"}`;
+// How past months went, in words: "Over for the 3rd month running" while a
+// bucket is over now, otherwise "Over target the last 3 months" (or "Short of
+// target…" for savings). Null when last month was on target.
+export function streakLabel(b: Pick<BucketAdherence, "streak" | "bucket" | "status">): string | null {
+  if (b.status === "over") return b.streak >= 2 ? `Over for the ${ordinal(b.streak)} month running` : null;
+  if (b.streak === 0) return null;
+  const when = b.streak === 1 ? "last month" : `the last ${b.streak} months`;
+  return `${b.bucket.holds_savings ? "Short of" : "Over"} target ${when}`;
+}
+
+// Where a bucket's month is heading, which is what its status goes by: "Heading
+// for ₹45,000 by month end, with ₹39,000 of planned payments still to pay."
+// Null once nothing more is expected.
+export function headingLabel(
+  b: Pick<BucketAdherence, "bucket" | "actual" | "projected" | "plannedLeft">,
+): string | null {
+  if (b.projected === b.actual) return null;
+  const savings = b.bucket.holds_savings;
+  const main = `Heading for ${formatINR(b.projected)}${savings ? " saved" : ""} by month end`;
+  if (b.plannedLeft <= 0) return `${main} at this pace.`;
+  return `${main}, with ${formatINR(b.plannedLeft)} of planned ${savings ? "transfers" : "payments"} still to come.`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

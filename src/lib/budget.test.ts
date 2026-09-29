@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyPreset, formatShare, parseRule, periodLabel, ruleName, parseShare, statusLabel, streakLabel, type RuleInput } from "./budget";
+import { applyPreset, formatShare, parseRule, periodLabel, ruleName, parseShare, statusLabel, streakLabel, headingLabel, type RuleInput } from "./budget";
 
 const NEEDS = "11111111-1111-4111-8111-111111111111";
 const WANTS = "22222222-2222-4222-8222-222222222222";
@@ -103,9 +103,22 @@ test("status and streak wording (INS-17)", () => {
   expect(statusLabel({ status: "at_risk", bucket: wants })).toBe("At risk");
   expect(statusLabel({ status: "at_risk", bucket: savings })).toBe("Behind");
   expect(statusLabel({ status: "on_track", bucket: savings })).toBe("On track");
-  expect(streakLabel({ streak: 3, bucket: wants })).toBe("3rd month over");
-  expect(streakLabel({ streak: 2, bucket: savings })).toBe("2nd month short");
-  expect(streakLabel({ streak: 1, bucket: wants })).toBeNull();
+  expect(streakLabel({ streak: 3, bucket: wants, status: "over" })).toBe("Over for the 3rd month running");
+  expect(streakLabel({ streak: 1, bucket: wants, status: "over" })).toBeNull();
+  expect(streakLabel({ streak: 4, bucket: wants, status: "at_risk" })).toBe("Over target the last 4 months");
+  expect(streakLabel({ streak: 1, bucket: savings, status: "on_track" })).toBe("Short of target last month");
+  expect(streakLabel({ streak: 0, bucket: wants, status: "on_track" })).toBeNull();
+});
+
+test("headingLabel", () => {
+  const needs = { id: "n", name: "Needs", share_bp: 5000, holds_savings: false };
+  expect(headingLabel({ bucket: needs, actual: 290566, projected: 4500000, plannedLeft: 3900000 })).toBe(
+    "Heading for ₹45,000 by month end, with ₹39,000 of planned payments still to come.",
+  );
+  expect(headingLabel({ bucket: needs, actual: 100000, projected: 300000, plannedLeft: 0 })).toBe(
+    "Heading for ₹3,000 by month end at this pace.",
+  );
+  expect(headingLabel({ bucket: needs, actual: 100000, projected: 100000, plannedLeft: 0 })).toBeNull();
 });
 
 test("periodLabel", () => {

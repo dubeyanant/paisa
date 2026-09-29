@@ -54,7 +54,9 @@ Step 9 ships in three PRs based on `main`. None needs a migration.
 - **Owner feedback on real data:** the first look showed alerts for tiny amounts (₹36 a
   year on milk), a 90% savings rate on day 9, and four numbers for free money. Savings rate
   now covers finished months, pace and budget status allow for planned payments, alerts
-  have minimums, and free money is one sentence on Insights (TD-16).
+  have minimums, and free money is one sentence on Insights (TD-16). A second look asked
+  what the figures compared against: rows now open their entries, buckets say where the
+  month is heading, and savings are charted in rupees.
 
 Phase 1 is done once the owner has used Paisa for a week (the owner's call;
 the BRD's exit criterion says 2 weeks). The owner already logs everything in Paisa, not
