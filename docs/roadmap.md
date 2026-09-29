@@ -28,6 +28,9 @@ step 5 on works against real data from day one.
 
 ## Step 8 in detail
 
+**Owner feedback on 2026-09-29** added a short detour before 8c: blocked accounts and "available to
+spend" on Home and Accounts (TD-18). The migration ships first, then the screens.
+
 Step 8 ships in three parts, each a PR based on `main`. **8a** adds the one migration
 the screens need, and merges first (TD-3).
 

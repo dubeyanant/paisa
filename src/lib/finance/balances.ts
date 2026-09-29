@@ -49,8 +49,11 @@ export function cardOutstanding(balance: number): number {
 }
 
 export type BalanceSummary = {
-  // Bank + wallet (FR-1).
+  // Bank + wallet (FR-1), blocked accounts included.
   available: number;
+  // In blocked bank and wallet accounts: set aside for bills and planned
+  // spending, so not free to spend.
+  blocked: number;
   // Total owed across credit cards. A card in credit doesn't reduce what's
   // owed on the others.
   cardDues: number;
@@ -65,16 +68,20 @@ export type BalanceSummary = {
   loansOwed: number;
   // Everything owned minus everything owed (INS-18).
   netPosition: number;
+  // Bank and cash minus blocked money and card dues: what's really free to
+  // spend right now.
+  spendable: number;
 };
 
 export function balanceSummary(accounts: Account[], balances: Map<string, number>): BalanceSummary {
-  const summary = { available: 0, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
+  const summary = { available: 0, blocked: 0, cardDues: 0, cardCredit: 0, savings: 0, deposits: 0, loansOwed: 0 };
   for (const account of accounts) {
     const balance = balances.get(account.id) ?? 0;
     switch (account.type) {
       case "bank":
       case "wallet":
         summary.available += balance;
+        if (account.is_blocked) summary.blocked += balance;
         break;
       case "credit_card":
       case "loan": {
@@ -92,9 +99,10 @@ export function balanceSummary(accounts: Account[], balances: Map<string, number
         break;
     }
   }
-  const { available, cardDues, cardCredit, savings, deposits, loansOwed } = summary;
+  const { available, blocked, cardDues, cardCredit, savings, deposits, loansOwed } = summary;
   return {
     ...summary,
     netPosition: available + savings + deposits + cardCredit - cardDues - loansOwed,
+    spendable: available - blocked - cardDues,
   };
 }

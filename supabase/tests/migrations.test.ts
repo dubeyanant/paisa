@@ -229,6 +229,20 @@ describe("transactions", () => {
     await expect(makeAccount(OWNER, "Type crypto", "crypto")).rejects.toThrow(/check constraint/);
   });
 
+  test("only bank and wallet accounts can be blocked", async () => {
+    const block = (name: string, type: string) =>
+      as(OWNER, () => rows("insert into accounts (name, type, is_blocked) values ($1, $2, true)", [name, type]));
+    await block("Blocked wallet", "wallet");
+    await block("Blocked bank", "bank");
+    for (const type of ["credit_card", "savings", "loan", "deposit"]) {
+      await expect(block(`Blocked ${type}`, type)).rejects.toThrow(/accounts_blocked_type_check/);
+    }
+    const [row] = await as(OWNER, () =>
+      rows<{ is_blocked: boolean }>("insert into accounts (name, type) values ('Not blocked', 'wallet') returning is_blocked"),
+    );
+    expect(row.is_blocked).toBe(false);
+  });
+
   test("a transfer can't go to the same account", async () => {
     await expect(
       insert({ kind: "transfer", occurred_at: new Date().toISOString(), amount: 100, account_id: bank, to_account_id: bank }),
