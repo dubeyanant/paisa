@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { budgetMonthOf } from "./dates";
+import { budgetMonthOf, istDate } from "./dates";
 import { account, at, byId, commitment, tx } from "./fixtures";
 import {
   addMonths,
@@ -10,6 +10,7 @@ import {
   plannedToPay,
   recurringCost,
   reservedIn,
+  stillToPay,
   upcoming,
 } from "./recurring";
 
@@ -181,5 +182,20 @@ describe("planned money to pay this month (TD-18)", () => {
     const soon = tx({ kind: "expense", amount: 250000, is_planned: true, occurred_at: at("2026-10-10") });
     const nextMonth = tx({ kind: "expense", amount: 250000, is_planned: true, occurred_at: at("2026-10-21") });
     expect(plannedToPay([], [soon, nextMonth], accounts, month, "2026-09-29")).toBe(250000);
+  });
+});
+
+describe("still to pay", () => {
+  test("unpaid due dates and planned entries in the period, as transactions", () => {
+    const sep = budgetMonthOf("2026-09-01");
+    const rent = commitment({ id: "rent", amount: 1500000, first_due_on: "2026-08-05" });
+    const paidAug = tx({ kind: "expense", amount: 1500000, subcategory_id: "rent", recurring_id: "rent", occurred_at: at("2026-08-05") });
+    const trip = tx({ kind: "expense", amount: 300000, subcategory_id: "travel", is_planned: true, occurred_at: at("2026-09-20") });
+    const later = tx({ kind: "expense", amount: 100, subcategory_id: "travel", is_planned: true, occurred_at: at("2026-10-02") });
+    const left = stillToPay([rent], [paidAug, trip, later], sep, "2026-09-10");
+    expect(left.map((t) => [t.subcategory_id, t.amount, t.is_planned, istDate(t.occurred_at)])).toEqual([
+      ["rent", 1500000, false, "2026-09-05"],
+      ["travel", 300000, false, "2026-09-20"],
+    ]);
   });
 });

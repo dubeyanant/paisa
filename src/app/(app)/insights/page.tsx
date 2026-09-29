@@ -11,6 +11,7 @@ import { formatINR } from "@/lib/finance/money";
 import { percent, times } from "@/lib/home";
 import {
   budgetHeadline,
+  committedHeadline,
   emergencyHeadline,
   howOften,
   paceHeadline,
@@ -54,7 +55,7 @@ export default async function InsightsPage() {
       <PageHeader title="Insights" />
       <p className="-mt-3 mb-5 text-sm text-muted md:-mt-6 md:mb-8">{periodLabel(d.month)}</p>
       <div className="grid items-start gap-4 md:grid-cols-2 md:gap-6">
-        <Section title="Savings rate" headline={savingsHeadline(savings.length ? savings : d.savings.slice(-1))}>
+        <Section title="Savings rate" headline={savingsHeadline(savings)}>
           {savings.length > 1 && (
             <>
               <SavingsChart
@@ -101,7 +102,7 @@ export default async function InsightsPage() {
           )}
         </Section>
 
-        <Section title="Spending pace" headline={paceHeadline(d.pace, category)}>
+        <Section title="Everyday spending pace" headline={paceHeadline(d.pace, category)}>
           {d.pace.ready && <PaceList byCategory={d.pace.byCategory} name={category} />}
         </Section>
 
@@ -129,7 +130,7 @@ export default async function InsightsPage() {
             </ul>
           )}
           <p className="mt-2 text-sm text-muted">
-            Spends under {formatINR(d.threshold)}.{" "}
+            Spends under {formatINR(d.threshold)} in the last 30 days.{" "}
             <Link href="/more/settings" className="font-medium text-accent">
               Change
             </Link>
@@ -161,6 +162,8 @@ export default async function InsightsPage() {
             </ul>
           )}
         </Section>
+
+        <Section title="Income and planned payments" headline={committedHeadline(d.free)} />
 
         <LinkSection
           href="/more/planned"
@@ -246,7 +249,8 @@ function PaceList({ byCategory, name }: { byCategory: Map<string, Pace>; name: (
         })}
       </ul>
       <p className="text-sm text-muted">
-        The mark is where a usual month is by today.{rows.length > TOP ? ` Top ${TOP} of ${rows.length} categories.` : ""}
+        The mark is where a usual month is by today. Planned payments like rent and bills aren&rsquo;t counted.
+        {rows.length > TOP ? ` Top ${TOP} of ${rows.length} categories.` : ""}
       </p>
     </>
   );
@@ -268,7 +272,7 @@ function TrendList({ byCategory, name }: { byCategory: Map<string, CategoryTrend
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{name(id)}</p>
                 <p className="text-sm text-muted tabular-nums">
-                  {formatINR(t.thisMonth)} · usual {formatINR(t.typical)}
+                  {formatINR(t.thisMonth)} so far · usual {formatINR(t.typical)}
                   {t.multiple !== null && t.flagged && (
                     <span className="font-medium text-negative"> · {times(t.multiple)}</span>
                   )}

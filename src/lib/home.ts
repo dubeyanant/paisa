@@ -1,5 +1,5 @@
-// Headlines for the Home screen (FR-8): top alerts (INS-19), free money
-// (INS-01), savings rate (INS-02) and spending pace (INS-04). Each is plain
+// Headlines for the Home screen (FR-8): top alerts (INS-19), last month's
+// savings rate (INS-02) and everyday spending pace (INS-04). Each is plain
 // words with a number (FR-8 AC2). The figures come from src/lib/finance/.
 
 import { streakLabel } from "@/lib/budget";
@@ -7,7 +7,7 @@ import { filtersQuery } from "@/lib/entry-filters";
 import type { Alert } from "@/lib/finance/alerts";
 import type { Period } from "@/lib/finance/dates";
 import type { RecurringPayment } from "@/lib/finance/detection";
-import type { CommittedVsFree, Pace, Ready, SavingsMonth } from "@/lib/finance/insights";
+import type { Pace, Ready, SavingsMonth } from "@/lib/finance/insights";
 import { formatINR } from "@/lib/finance/money";
 import type { UpcomingItem } from "@/lib/finance/recurring";
 import { dayInSentence } from "@/lib/recurring";
@@ -80,31 +80,19 @@ export function alertText(alert: Alert, names: AlertNames, { day, month, today }
   }
 }
 
-// INS-01: "₹35,399 of your ₹60,000 income is committed. ₹24,601 is free; ₹12,000 of it is left."
-export function freeMoneyText(c: CommittedVsFree): string {
-  if (c.income === 0) {
-    return c.committed > 0
-      ? `No income yet this month, and ${formatINR(c.committed)} is committed.`
-      : "No income yet this month.";
-  }
-  const committed = `${formatINR(c.committed)} of your ${formatINR(c.income)} income is committed.`;
-  if (c.free < 0) return `${committed} That's ${formatINR(-c.free)} more than came in.`;
-  if (c.freeLeft < 0) {
-    return `${committed} ${formatINR(c.free)} was free, and spending has gone ${formatINR(-c.freeLeft)} past it.`;
-  }
-  return `${committed} ${formatINR(c.free)} is free; ${formatINR(c.freeLeft)} of it is left.`;
-}
-
-// INS-02: this month's rate, and last month's if there's history for it.
+// INS-02 for last month, the latest finished one (`months` is the month
+// before it, then it). Until a month ends, rent and bills still to pay look like
+// money saved, so this month has no rate yet.
 export function savingsText(months: SavingsMonth[], firstDate: string | null): { figure: string; text: string } {
-  const now = months[months.length - 1];
+  const last = months[months.length - 1];
   const before = months[months.length - 2];
-  if (now.rate === null) return { figure: "–", text: "No income yet this month, so nothing to measure against." };
-  const saved = now.saved >= 0 ? `${formatINR(now.saved)} saved so far.` : `${formatINR(-now.saved)} more spent than earned.`;
-  const hadLastMonth = before && before.rate !== null && firstDate !== null && before.period.end > firstDate;
+  const tracked = (m: SavingsMonth | undefined) => m !== undefined && firstDate !== null && m.period.end > firstDate;
+  if (!tracked(last)) return { figure: "–", text: "Shows once your first month is over." };
+  if (last.rate === null) return { figure: "–", text: "No income last month." };
+  const saved = last.saved >= 0 ? `${formatINR(last.saved)} saved.` : `${formatINR(-last.saved)} more spent than earned.`;
   return {
-    figure: percent(now.rate),
-    text: hadLastMonth ? `${saved} Last month: ${percent(before.rate!)}.` : saved,
+    figure: percent(last.rate),
+    text: tracked(before) && before.rate !== null ? `${saved} The month before: ${percent(before.rate)}.` : saved,
   };
 }
 

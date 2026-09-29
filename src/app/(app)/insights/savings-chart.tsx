@@ -6,7 +6,7 @@ import { formatINR } from "@/lib/finance/money";
 // label is short, for the axis; full names the budget month in the tooltip.
 export type SavingsPoint = { label: string; full: string; rate: number | null; saved: number };
 
-// INS-02: the savings rate month by month (TD-17). Colours come from the theme,
+// INS-02: the savings rate of each finished month (TD-17). Colours come from the theme,
 // so the chart follows light and dark mode. The headline and a table for
 // screen readers render with it.
 export function SavingsChart({ points }: { points: SavingsPoint[] }) {
@@ -14,7 +14,7 @@ export function SavingsChart({ points }: { points: SavingsPoint[] }) {
   return (
     <div className="h-48" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -12 }} barCategoryGap="30%">
+        <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 0 }} barCategoryGap="30%">
           <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted)", fontSize: 12 }} />
           <YAxis
@@ -22,7 +22,7 @@ export function SavingsChart({ points }: { points: SavingsPoint[] }) {
             axisLine={false}
             tick={{ fill: "var(--muted)", fontSize: 12 }}
             tickFormatter={(v: number) => `${v}%`}
-            width={44}
+            width={48}
             allowDecimals={false}
           />
           <ReferenceLine y={0} stroke="var(--muted)" />

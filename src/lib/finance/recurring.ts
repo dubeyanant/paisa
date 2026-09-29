@@ -1,4 +1,4 @@
-import { addDays, istDate, type Period } from "./dates";
+import { addDays, istDate, istStartOf, type Period } from "./dates";
 import { assertPaise } from "./money";
 import type { Account, Commitment, Transaction } from "./types";
 
@@ -207,6 +207,42 @@ export function plannedToPay(
     total += item.amount;
   }
   return total;
+}
+
+// Planned payments still to pay in the period, overdue ones in it included, as
+// the transactions they'll become: an unpaid due date as a payment on that day,
+// a planned entry as itself. Lets the budget count bills before they're paid.
+export function stillToPay(
+  commitments: Commitment[],
+  transactions: Transaction[],
+  period: Period,
+  today: string,
+): Transaction[] {
+  const commitmentById = new Map(commitments.map((c) => [c.id, c]));
+  const transactionById = new Map(transactions.map((t) => [t.id, t]));
+  return outgoing(commitments, transactions, today, period.end).flatMap((item): Transaction[] => {
+    if (item.date < period.start) return [];
+    if (item.transaction_id) {
+      const t = transactionById.get(item.transaction_id);
+      return t ? [{ ...t, is_planned: false }] : [];
+    }
+    const c = commitmentById.get(item.commitment_id!);
+    if (!c) return [];
+    return [
+      {
+        id: `${c.id}:${item.date}`,
+        kind: c.kind,
+        occurred_at: istStartOf(item.date).toISOString(),
+        amount: c.amount,
+        account_id: c.account_id,
+        to_account_id: c.to_account_id,
+        subcategory_id: c.subcategory_id,
+        is_planned: false,
+        bucket_override_id: null,
+        recurring_id: c.id,
+      },
+    ];
+  });
 }
 
 // What a commitment costs per month and per year, rounded to the paisa (INS-09).

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { listAccounts } from "@/lib/data/accounts";
 import { getActiveRule, getFirstEntryDate, getTransactionsBetween } from "@/lib/data/budget";
-import { getBudgetMonthStartDay } from "@/lib/data/recurring";
+import { getBudgetMonthStartDay, getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
 import { formatShare, periodLabel, statusLabel, streakLabel } from "@/lib/budget";
-import { budgetAdherence, type BucketAdherence } from "@/lib/finance/budget";
+import { budgetAdherence, plannedPayments, type BucketAdherence } from "@/lib/finance/budget";
 import { budgetMonthOf, daysElapsed, istDate, periodLength, shiftBudgetMonth } from "@/lib/finance/dates";
 import { formatINR } from "@/lib/finance/money";
 
@@ -39,9 +39,23 @@ export default async function BudgetPage() {
     );
   }
 
-  const transactions = await getTransactionsBetween(shiftBudgetMonth(month, -HISTORY_MONTHS), month);
+  const [history, commitments, scheduled] = await Promise.all([
+    getTransactionsBetween(shiftBudgetMonth(month, -HISTORY_MONTHS), month),
+    listCommitments(),
+    getScheduleTransactions(),
+  ]);
+  // Every planned payment, so the ones still to pay count this month.
+  const transactions = [...new Map([...scheduled, ...history].map((t) => [t.id, t])).values()];
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
-  const { base, buckets, unassigned } = budgetAdherence(transactions, rule, accountsById, month, today, HISTORY_MONTHS);
+  const { base, buckets, unassigned } = budgetAdherence(
+    transactions,
+    rule,
+    accountsById,
+    month,
+    today,
+    HISTORY_MONTHS,
+    plannedPayments(transactions, commitments, month, today),
+  );
   // Months before the first entry have nothing to judge.
   const firstDate = firstEntry ? istDate(firstEntry) : null;
   const judged = (end: string) => firstDate !== null && end > firstDate;

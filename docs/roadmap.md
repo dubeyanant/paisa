@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 9 built; Phase 1 ends after a week of daily use).
+Last updated: 2026-09-29 (step 9 built and tuned; Phase 1 ends after a week of daily use).
 
 ## Phase 1: replace the old app
 
@@ -51,6 +51,10 @@ Step 9 ships in three PRs based on `main`. None needs a migration.
   breaks it down by category and subcategory, and a chart ranks every tag by cost per
   day. The Tags list shows each tag's total and cost per day, and Insights links to the
   latest one. Only tagged entries are loaded, so this stays quick.
+- **Owner feedback on real data:** the first look showed alerts for tiny amounts (₹36 a
+  year on milk), a 90% savings rate on day 9, and four numbers for free money. Savings rate
+  now covers finished months, pace and budget status allow for planned payments, alerts
+  have minimums, and free money is one sentence on Insights (TD-16).
 
 Phase 1 is done once the owner has used Paisa for a week (the owner's call;
 the BRD's exit criterion says 2 weeks). The owner already logs everything in Paisa, not

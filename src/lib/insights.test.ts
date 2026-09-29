@@ -6,6 +6,7 @@ import type { CategoryTrend, Pace, SavingsMonth } from "@/lib/finance/insights";
 import type { TagReport } from "@/lib/finance/tags";
 import {
   budgetHeadline,
+  committedHeadline,
   emergencyHeadline,
   howOften,
   notReady,
@@ -37,17 +38,27 @@ test("notReady", () => {
   expect(notReady(2)).toBe("Available after 2 more months of entries.");
 });
 
-test("INS-02 savings rate", () => {
+test("INS-01 income and planned payments", () => {
+  const c = { income: 6000000, committed: 3539900, free: 2460100, discretionary: 0, planned: 0, freeLeft: 0, reserved: 0 };
+  expect(committedHeadline(c)).toBe("₹35,399 of your ₹60,000 income this month goes to planned payments (59%).");
+  expect(committedHeadline({ ...c, income: 0 })).toBe("No income yet this month. ₹35,399 of planned payments are due.");
+  expect(committedHeadline({ ...c, income: 3000000 })).toBe(
+    "₹35,399 of planned payments are due this month, more than your ₹30,000 income so far.",
+  );
+});
+
+test("INS-02 savings rate, finished months only", () => {
   expect(savingsHeadline([month(aug, 6000000, 4800000), month(sep, 6000000, 4500000)])).toBe(
-    "You saved 25% this month (₹15,000), up from 20% last month.",
+    "You saved 25% last month (₹15,000), up from 20% the month before.",
   );
   expect(savingsHeadline([month(aug, 6000000, 4500000), month(sep, 6000000, 4800000)])).toBe(
-    "You saved 20% this month (₹12,000), down from 25% last month.",
+    "You saved 20% last month (₹12,000), down from 25% the month before.",
   );
   expect(savingsHeadline([month(aug, 0, 0), month(sep, 6000000, 6600000)])).toBe(
-    "You spent ₹6,000 more than you earned this month.",
+    "You spent ₹6,000 more than you earned last month.",
   );
-  expect(savingsHeadline([month(sep, 0, 100)])).toBe("No income yet this month, so there's no savings rate.");
+  expect(savingsHeadline([month(sep, 0, 100)])).toBe("No income last month, so there's no savings rate.");
+  expect(savingsHeadline([])).toBe("Shows once your first month is over.");
 });
 
 test("INS-03 emergency fund", () => {
@@ -102,7 +113,7 @@ test("INS-05 trends", () => {
     ["home", trend(100, 100)],
   ]);
   expect(trendHeadline({ ready: true, byCategory }, names)).toBe(
-    "Food is 1.6× your usual this month. 1 more is well above usual too.",
+    "Food is already 1.6× your usual this month. 1 more is well above usual too.",
   );
   expect(trendHeadline({ ready: true, byCategory: new Map([["home", trend(100, 100)]]) }, names)).toBe(
     "No category is well above its usual this month.",
@@ -112,9 +123,9 @@ test("INS-05 trends", () => {
 test("INS-06 small spends (UAT-10)", () => {
   const top = { subcategoryId: "rickshaw", count: 20, total: 240000, yearly: 2880000 };
   expect(smallSpendHeadline(top, "Rickshaw", 20000)).toBe(
-    "Rickshaw: 20 spends, ₹2,400 this month, about ₹28,800 a year.",
+    "Rickshaw: 20 spends, ₹2,400 in the last 30 days, about ₹28,800 a year.",
   );
-  expect(smallSpendHeadline(undefined, "", 20000)).toBe("No spends under ₹200 this month.");
+  expect(smallSpendHeadline(undefined, "", 20000)).toBe("No spends under ₹200 in the last 30 days.");
 });
 
 test("INS-09 subscriptions (UAT-8)", () => {

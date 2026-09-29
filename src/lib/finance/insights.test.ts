@@ -5,6 +5,7 @@ import {
   categoryTrends,
   committedVsFree,
   emergencyFundCoverage,
+  everyday,
   familyAndGiving,
   firstDateOf,
   healthyVsJunk,
@@ -265,5 +266,16 @@ describe("INS-18 net position", () => {
     expect(netPositionTrend(accountList, transactions, sep, "2026-09-10", 2).map((m) => m.netPosition)).toEqual([
       8500000, 8450000,
     ]);
+  });
+});
+
+describe("everyday spending", () => {
+  test("leaves out planned payments, linked or in a planned subcategory", () => {
+    const commitments = [commitment({ id: "rent", amount: 1500000 }), commitment({ id: "old-gym", amount: 200000, paused_at: "2026-01-01" })];
+    const linked = spend("groceries", 100, "2026-09-02", { recurring_id: "wifi" });
+    const importedRent = spend("rent", 1500000, "2026-08-01");
+    const food = spend("groceries", 50000, "2026-09-03");
+    const gym = spend("old-gym", 200000, "2026-09-03");
+    expect(everyday([linked, importedRent, food, gym], commitments, "2026-09-10")).toEqual([food, gym]);
   });
 });

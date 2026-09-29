@@ -9,16 +9,16 @@ import { describeEntry } from "@/lib/describe-entry";
 import type { BucketAdherence } from "@/lib/finance/budget";
 import { daysElapsed } from "@/lib/finance/dates";
 import { formatINR } from "@/lib/finance/money";
-import { alertText, freeMoneyText, paceText, savingsText, type AlertNames, type AlertText } from "@/lib/home";
+import { alertText, paceText, savingsText, type AlertNames, type AlertText } from "@/lib/home";
 import { recurringOverview } from "@/lib/recurring";
 import { EntryList } from "./entry-list";
 import { ComingUp } from "./more/planned/coming-up";
 import { DueNow } from "./more/planned/due-now";
 import { dueRows, fallbackName, lookups } from "./more/planned/rows";
 
-// Home (FR-8): what's free to spend, this month at a glance (free money,
-// pace, savings rate, budget buckets), the top alerts (INS-19), planned
-// payments due now and coming up, and the latest entries.
+// Home (FR-8): what's free to spend, this month at a glance (everyday
+// spending pace, last month's savings rate, budget buckets), the top alerts
+// (INS-19), planned payments due now and coming up, and the latest entries.
 export default async function Home() {
   const now = new Date();
   const [{ summary, accounts, commitments, scheduled, month, today }, labels, { latest }] = await Promise.all([
@@ -93,23 +93,16 @@ export default async function Home() {
           <Alerts alerts={alerts} className="lg:hidden" />
 
           <Card className="divide-y divide-line">
-            <div className="p-4 md:p-6">
-              <p className="text-sm text-muted">Free money left this month</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-                <Amount value={insights.free.freeLeft} />
-              </p>
-              <p className="mt-1 text-sm text-muted">{freeMoneyText(insights.free)}</p>
-            </div>
-            <dl className="grid grid-cols-2 gap-4 p-4 md:px-6">
+            <dl className="grid grid-cols-2 gap-4 p-4 md:p-6">
               <div className="min-w-0">
-                <dt className="text-sm text-muted">Spent vs a usual month</dt>
+                <dt className="text-sm text-muted">Everyday spending vs usual</dt>
                 <dd className={`text-xl font-semibold tabular-nums ${pace.hot ? "text-negative" : ""}`}>
                   {pace.figure}
                 </dd>
                 <dd className="mt-1 text-sm text-muted">{pace.text}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-sm text-muted">Savings rate</dt>
+                <dt className="text-sm text-muted">Saved last month</dt>
                 <dd className="text-xl font-semibold tabular-nums">{savings.figure}</dd>
                 <dd className="mt-1 text-sm text-muted">{savings.text}</dd>
               </div>
