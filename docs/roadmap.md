@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 8 started).
+Last updated: 2026-09-29 (step 8 done).
 
 ## Phase 1: replace the old app
 
@@ -16,7 +16,7 @@ Last updated: 2026-09-29 (step 8 started).
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Done | PRs #12 to #15, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
-| 8 | **Recurring commitments and budget rules (FR-6, FR-7)** | **In progress** | PR #16 (8a), 8b: recurring screens, TD-16 |
+| 8 | Recurring commitments and budget rules (FR-6, FR-7) | Done | PRs #16 to #20 and the budget screens PR, TD-16, TD-18 |
 | 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
@@ -28,23 +28,25 @@ step 5 on works against real data from day one.
 
 ## Step 8 in detail
 
-**Owner feedback on 2026-09-29** added a short detour before 8c: blocked accounts and "available to
-spend" on Home and Accounts (TD-18). The migration ships first, then the screens.
-
-Step 8 ships in three parts, each a PR based on `main`. **8a** adds the one migration
-the screens need, and merges first (TD-3).
+Step 8 shipped in parts, each a PR based on `main`. Every migration merged before the
+screens that use it (TD-3).
 
 - **8a (#16): skipping a due date.** `recurring_skips` holds due dates the owner skipped, and
   the calculation library leaves them out of the schedule (TD-16).
-- **8b: recurring commitments (FR-6).** More → Recurring lists, adds, edits, pauses and
+- **8b (#17): recurring commitments (FR-6).** More → Recurring lists, adds, edits, pauses and
   deletes commitments, and shows money reserved this month. Due now (also on Home) confirms
   a due date with one tap, with the amount editable first, or skips it with an undo, and
   confirms planned entries whose date has come (BR-7). Coming up shows the next 30 days
   with a total. Payments detected in the history are offered as new commitments.
-- **8c: budget rules (FR-7).** `save_budget_rule()` ships first, in its own PR. The Budget screen shows each bucket's target, actual,
-  remaining, share of the base and pace, and how each of the last 6 months went. Rules:
-  pick a preset or make a custom one (2 to 6 buckets adding up to 100%), and choose the
-  base. An entry's edit screen can move that one entry to another bucket.
+- **Owner feedback (#18, #19): blocked money.** Bank and wallet accounts can be marked
+  blocked. Home and Accounts lead with available to spend: bank and cash minus blocked
+  money and card dues (TD-18).
+- **8c (#20 and the budget screens PR): budget rules (FR-7).** `save_budget_rule()` saves a
+  rule all at once (TD-15). More → Budget shows each bucket's target, actual, what's left,
+  share of the base and pace, and the last 6 months (a full table on larger screens, a
+  row of marks per bucket on a phone). Edit rule picks a preset or custom buckets (2 to 6,
+  adding up to 100%) and the base. An entry's edit screen can move that one entry to
+  another bucket.
 
 ## Step 6 in detail
 

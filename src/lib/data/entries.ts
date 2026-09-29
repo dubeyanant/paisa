@@ -24,6 +24,7 @@ export type Entry = RecentEntry & {
   is_planned: boolean;
   // Only when opened on its own, to edit or copy.
   tag_ids?: string[];
+  bucket_override_id?: string | null;
 };
 
 export type TagOption = { id: string; name: string; starts_on: string | null; ends_on: string | null };
@@ -133,7 +134,7 @@ export async function getEntry(id: string): Promise<Entry> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
-    .select(`${ENTRY_COLUMNS}, transaction_tags(tag_id)`)
+    .select(`${ENTRY_COLUMNS}, bucket_override_id, transaction_tags(tag_id)`)
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
