@@ -134,6 +134,8 @@ Add a new entry when a decision is made, with the date and the reason.
   - A figure that needs every transaction, starting with account balances, comes from a SQL view (`account_balances`), not from loading every transaction into the app.
   - Each view follows the same rules as `src/lib/finance/`, and `supabase/tests/migrations.test.ts` checks that both give the same figures.
   - Views use `security_invoker`, so RLS still limits them to the owner's rows. They're granted to `authenticated` only.
+  - The same goes for searching entries (FR-8.3). `search_transactions()` applies the filters and `transaction_totals()` sums what they match, so the totals cover every match, not just the rows on screen. Both are SQL functions with the caller's rights, granted to `authenticated` only.
+  - Merging subcategories and categories (FR-4) is a SQL function too (`merge_subcategory()`, `merge_category()`), so a merge happens completely or not at all.
 - **Why:** The owner already has thousands of entries, and the API returns at most 1,000 rows per request. Loading them all on every screen would be slow (NFR-3, NFR-8).
 
 ### TD-16 Recurring commitments and insights: pure functions
@@ -148,12 +150,19 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date gets a "Skip" option with the recurring screens (step 8); it needs a small migration.
 - **Why:** The BRD gives exact figures for these (UAT-3, 8, 9, 10), so they're tested without a database or a screen (NFR-5), and every screen uses the same numbers.
 
+### TD-17 Charts: Recharts
+- **Date:** 2026-09-29
+- **Decision:** Charts on the Insights, Budget and Home screens use [Recharts](https://recharts.org). It's installed with the first chart (roadmap step 9).
+  - Charts are Client Components. The headline and figures around a chart render on the server, so a screen reads fine before its charts load (FR-8 AC2).
+  - Colours come from the theme tokens in `globals.css` (`var(--accent)` and so on), so charts follow light and dark mode (NFR-7).
+  - Small shapes such as a progress bar or a budget meter stay plain HTML and CSS; they don't need a library.
+- **Why:** Recharts draws SVG, so it takes colours from CSS variables and resizes to fit a phone or a laptop (NFR-1). It covers every chart the insights need (bars, stacked bars, lines, areas, donuts) with little code, and supports React 19. Chart.js draws on a canvas, which can't read CSS variables; ECharts is much larger; visx and D3 need far more code for each chart.
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.
 
 | Topic | Relevant BRD | Suggested starting point |
 |---|---|---|
-| Charts library | FR-8, Section 9 | — |
 | Parsing .xlsx for import | FR-14 | SheetJS (`xlsx`) in the import script only |
 | Storing AI provider keys | FR-10.1, NFR-6 | Encrypted on the server, never sent back to the client |

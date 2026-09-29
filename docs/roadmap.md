@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 5 done).
+Last updated: 2026-09-29 (step 6 started).
 
 ## Phase 1: replace the old app
 
@@ -14,10 +14,10 @@ Last updated: 2026-09-29 (step 5 done).
 | 3 | Core database schema, owner-only RLS, default categories | Done | PRs #3 and #5, TD-13 |
 | 4 | Calculation library: money, IST dates, balances, totals, budgets | Done | PR #4, `src/lib/finance/` |
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
-| 6 | **Transaction list, category management, tags (FR-4, FR-5, FR-8.3)** | **Next** | |
+| 6 | **Transaction list, category management, tags (FR-4, FR-5, FR-8.3)** | **In progress** | 6a: search and merge functions, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
 | 8 | Recurring commitments and budget rules (FR-6, FR-7) | Logic done, screens to do | `src/lib/finance/`, TD-16 |
-| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16 |
+| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
 It also covers the Phase 2 insights INS-07, 08, 11, 12, 15 and 18, which cost little
@@ -28,6 +28,10 @@ The owner's history is already in the production database, so every screen from
 step 5 on works against real data from day one.
 
 ## Step 6 in detail
+
+Step 6 ships in three parts. **6a** adds the database functions the others use, and merges
+first, because a preview can't run code whose migration hasn't run yet (TD-3). **6b** is the
+Entries screen and balance corrections. **6c** is categories and tags.
 
 - **Transaction list (FR-8.3).** Every entry, not just the latest on Home, with search
   and filters. Tapping one opens the edit screen that step 5 built (`/entries/[id]`).
