@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 6 built, waiting to merge).
+Last updated: 2026-09-29 (step 6 done).
 
 ## Phase 1: replace the old app
 
@@ -14,7 +14,7 @@ Last updated: 2026-09-29 (step 6 built, waiting to merge).
 | 3 | Core database schema, owner-only RLS, default categories | Done | PRs #3 and #5, TD-13 |
 | 4 | Calculation library: money, IST dates, balances, totals, budgets | Done | PR #4, `src/lib/finance/` |
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
-| 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Built; merge PRs #12, #13, #14 in that order | TD-15 |
+| 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Done | PRs #12 to #15, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
 | 8 | **Recurring commitments and budget rules (FR-6, FR-7)** | **Next**: logic done, screens to do | `src/lib/finance/`, TD-16 |
 | 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
@@ -29,8 +29,9 @@ step 5 on works against real data from day one.
 
 ## Step 6 in detail
 
-Step 6 ships in three stacked PRs, merged in order. The migration goes first, because a
-preview can't run code whose migration hasn't run yet (TD-3).
+Step 6 shipped in three parts. The migration went first, because a preview can't run code
+whose migration hasn't run yet (TD-3). #13 and #14 were stacked PRs that merged into each
+other's branches, so #15 brought them to `main`.
 
 - **6a (#12): database functions.** Search and totals for the Entries screen, and
   all-or-nothing merges (TD-15).
