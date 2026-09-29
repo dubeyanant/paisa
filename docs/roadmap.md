@@ -61,17 +61,19 @@ The owner wants each screen to keep only what gets used: the 20% of features tha
 
 ## Funds, during the trial week (TD-21)
 
+Done: the migration shipped in PR #32 and the screens in PR #33 (2026-09-30).
+
 The owner saves for big purchases over a few months, and used to keep Things, Clothes and
 Trip bucket accounts (now archived). Funds replace both: the money stays in the bank, and
 only what a fund holds is kept out of available to spend.
 
-1. **Migration** (`funds`, `fund_moves`, `transactions.fund_id`, `update_fund()`). Pushed to
-   `dev`; it has to merge into `main` before the screens (TD-3).
-2. **Screens:** More → Planned lists funds, and New has Once, Repeats and Save up. A fund's
+1. **Migration (#32):** `funds`, `fund_moves`, `transactions.fund_id` and `update_fund()`.
+   It merged before the screens (TD-3).
+2. **Screens (#33):** More → Planned lists funds, and New has Once, Repeats and Save up. A fund's
    screen adds or takes out money, changes the schedule, closes it and shows its history.
    Add and edit take "From fund". Home shows open funds in a card after Planned, and "In
-   funds" under available to spend. Budget counts money into funds, and pace leaves out what funds
-   paid for. Pushed once step 1 is in `main`.
+   funds" under available to spend. Budget counts money into funds, and pace leaves out what
+   funds paid for.
 3. **Owner's review:** the two kinds are a target fund (a guitar: a set amount over some
    months) and a recurring fund (clothes: a monthly amount up to a limit, filling back up
    after spends). A target fund closes at its purchase and frees what's left, unless its
