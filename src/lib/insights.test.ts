@@ -3,6 +3,7 @@ import type { BucketAdherence } from "@/lib/finance/budget";
 import { budgetMonthOf, type Period } from "@/lib/finance/dates";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type { CategoryTrend, Pace, SavingsMonth } from "@/lib/finance/insights";
+import type { TagReport } from "@/lib/finance/tags";
 import {
   budgetHeadline,
   emergencyHeadline,
@@ -12,6 +13,8 @@ import {
   savingsHeadline,
   smallSpendHeadline,
   subscriptionsHeadline,
+  tagComparison,
+  tagHeadline,
   trendHeadline,
   upcomingHeadline,
 } from "./insights";
@@ -163,4 +166,41 @@ test("INS-17 budget", () => {
     "Wants at 36% vs 30% target. 3rd month over.",
   );
   expect(budgetHeadline([bucket("Needs", "on_track", 100)])).toBe("Every bucket is on track this month.");
+});
+
+describe("INS-13 tags", () => {
+  const report = (fields: Partial<TagReport>): TagReport => ({
+    tagId: "goa",
+    count: 12,
+    total: 1800000,
+    firstDate: "2026-05-01",
+    lastDate: "2026-05-06",
+    days: 6,
+    perDay: 300000,
+    byCategory: new Map([
+      ["fun", 720000],
+      ["food", 600000],
+      ["home", 480000],
+    ]),
+    bySubcategory: new Map(),
+    vsOthers: 1.4,
+    ...fields,
+  });
+
+  test("the headline", () => {
+    expect(tagHeadline("Goa Trip", report({}), names)).toBe(
+      "Goa Trip: ₹18,000 over 6 days, ₹3,000/day; 40% on Fun.",
+    );
+    expect(tagHeadline("Dinner", report({ days: 1, total: 250000, perDay: 250000, byCategory: new Map([["food", 250000]]) }), names)).toBe(
+      "Dinner: ₹2,500 over 1 day, ₹2,500/day, all on Food.",
+    );
+    expect(tagHeadline("Diwali", report({ total: 0 }), names)).toBe("Diwali: nothing spent yet.");
+  });
+
+  test("against other tags", () => {
+    expect(tagComparison(report({}))).toBe("40% more a day than your other tags.");
+    expect(tagComparison(report({ vsOthers: 0.75 }))).toBe("25% less a day than your other tags.");
+    expect(tagComparison(report({ vsOthers: 1.02 }))).toBe("About the same a day as your other tags.");
+    expect(tagComparison(report({ vsOthers: null }))).toBeNull();
+  });
 });
