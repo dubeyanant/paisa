@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { parseAccountForm } from "@/lib/accounts";
+import { isOwedType, parseAccountForm } from "@/lib/accounts";
 import { isUuid } from "@/lib/data/accounts";
+import { parseSignedRupees } from "@/lib/finance/money";
 import { createClient } from "@/lib/supabase/server";
 
 export type AccountFormState = { error: string } | undefined;
@@ -54,6 +55,49 @@ export async function setArchived(id: string, archived: boolean): Promise<Accoun
 
   revalidatePath("/", "layout");
   redirect("/accounts");
+}
+
+export type CorrectionResult = { ok: true; amount: number } | { ok: false; error: string };
+
+// Sets an account's balance to what it really is now, by recording the
+// difference as a balance correction. A correction changes the balance only,
+// never spending, income or saving (BR-13). For a card or loan, `actual` is
+// the amount owed.
+export async function correctBalance(id: string, actual: string): Promise<CorrectionResult> {
+  await requireUser();
+  if (!isUuid(id)) return { ok: false, error: "That account doesn't exist." };
+  const amount = parseSignedRupees(String(actual ?? ""));
+  if (amount === null) return { ok: false, error: "Enter the balance, like 12500 or -250.50." };
+
+  const supabase = await createClient();
+  const [account, balance] = await Promise.all([
+    supabase.from("accounts").select("type, opening_balance").eq("id", id).maybeSingle(),
+    supabase.from("account_balances").select("balance").eq("account_id", id).maybeSingle(),
+  ]);
+  if (account.error || balance.error) {
+    console.error("Reading a balance failed:", account.error ?? balance.error);
+    return { ok: false, error: "Couldn't correct the balance. Please try again." };
+  }
+  if (!account.data) return { ok: false, error: "That account doesn't exist." };
+
+  const current = Number(balance.data?.balance ?? account.data.opening_balance);
+  const target = isOwedType(account.data.type) ? 0 - amount : amount;
+  const difference = target - current;
+  if (difference === 0) return { ok: false, error: "That's already the balance, so nothing changed." };
+
+  const { error } = await supabase.from("transactions").insert({
+    kind: "adjustment",
+    amount: difference,
+    account_id: id,
+    occurred_at: new Date().toISOString(),
+  });
+  if (error) {
+    console.error("Correcting a balance failed:", error.code, error.message);
+    return { ok: false, error: "Couldn't correct the balance. Please try again." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, amount: difference };
 }
 
 // Only an account with no entries can be deleted; the database refuses otherwise.

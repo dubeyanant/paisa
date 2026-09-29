@@ -36,6 +36,39 @@ export function AccountsIcon(props: IconProps) {
   );
 }
 
+export function EntriesIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" strokeWidth={2} />
+    </Icon>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.4-4.4" />
+    </Icon>
+  );
+}
+
+export function FilterIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16M7 12h10M10 17h4" />
+    </Icon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Icon>
+  );
+}
+
 export function MoreIcon(props: IconProps) {
   return (
     <Icon {...props}>

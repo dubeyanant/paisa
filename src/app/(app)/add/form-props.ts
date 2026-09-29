@@ -5,7 +5,7 @@ import type { EntryFormProps } from "./entry-form";
 
 // Works out the Add screen's suggestions on the server, so the browser gets
 // the results, not the history behind them.
-export function entryFormProps({ accounts, subcategories, recent }: EntryContext): Omit<EntryFormProps, "initial"> {
+export function entryFormProps({ accounts, subcategories, recent, tags }: EntryContext): Omit<EntryFormProps, "initial"> {
   const active = accounts.filter((a) => !a.archived).map((a) => a.id);
   const usable = {
     accounts: new Set(active),
@@ -14,6 +14,7 @@ export function entryFormProps({ accounts, subcategories, recent }: EntryContext
   return {
     accounts,
     subcategories,
+    tags,
     // Up to 6 per kind are shown.
     picks: quickPicks(recent, usable, { limit: 24 }),
     frequent: {

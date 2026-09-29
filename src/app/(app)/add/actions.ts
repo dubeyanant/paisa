@@ -19,14 +19,31 @@ export async function saveEntry(input: EntryInput): Promise<EntryResult> {
   const ids = parsed.rows.map((r) => r.id);
   // The lines' ids come from the browser. If they're already taken, this is a
   // retry of a save that went through (the insert is all or nothing), so the
-  // entry isn't saved twice.
-  if (error?.code === "23505" && error.message.includes("transactions_pkey")) {
-    return { ok: true, ids };
-  }
-  if (error) return { ok: false, error: saveErrorMessage(error.code, error.message) };
+  // entry isn't saved twice; its tags are still added below.
+  const retry = error?.code === "23505" && error.message.includes("transactions_pkey");
+  if (error && !retry) return { ok: false, error: saveErrorMessage(error.code, error.message) };
+
+  const tagged = await addTags(ids, parsed.tagIds);
+  if (!tagged.ok) return tagged;
 
   revalidatePath("/", "layout");
   return { ok: true, ids };
+}
+
+// Tags every one of the entries. Adding a tag twice is fine, so a retry is safe.
+async function addTags(ids: string[], tagIds: string[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (tagIds.length === 0) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("transaction_tags")
+    .upsert(
+      ids.flatMap((transaction_id) => tagIds.map((tag_id) => ({ transaction_id, tag_id }))),
+      { onConflict: "transaction_id,tag_id", ignoreDuplicates: true },
+    );
+  if (!error) return { ok: true };
+  if (error.code === "23503") return { ok: false, error: "A tag was deleted meanwhile. Reload and try again." };
+  console.error("Tagging an entry failed:", error.code, error.message);
+  return { ok: false, error: "Saved, but the tags weren't added. Press save again to add them." };
 }
 
 // Changes an existing entry. It has a single line, whose id is the entry's.
@@ -42,6 +59,17 @@ export async function updateEntry(id: string, input: EntryInput): Promise<EntryR
   const { data, error } = await supabase.from("transactions").update(changes).eq("id", id).select("id");
   if (error) return { ok: false, error: saveErrorMessage(error.code, error.message) };
   if (data.length === 0) return { ok: false, error: "That entry doesn't exist any more." };
+
+  // Its tags become exactly the ones chosen.
+  let untag = supabase.from("transaction_tags").delete().eq("transaction_id", id);
+  if (parsed.tagIds.length > 0) untag = untag.not("tag_id", "in", `(${parsed.tagIds.join(",")})`);
+  const { error: untagError } = await untag;
+  if (untagError) {
+    console.error("Untagging an entry failed:", untagError.code, untagError.message);
+    return { ok: false, error: "Saved, but the tags weren't updated. Press save again." };
+  }
+  const tagged = await addTags([id], parsed.tagIds);
+  if (!tagged.ok) return tagged;
 
   revalidatePath("/", "layout");
   return { ok: true, ids: [id] };
