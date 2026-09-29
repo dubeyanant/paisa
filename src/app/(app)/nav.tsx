@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AccountsIcon, EntriesIcon, HomeIcon, MoreIcon, PlusIcon } from "@/components/icons";
+import { AccountsIcon, EntriesIcon, HomeIcon, InsightsIcon, MoreIcon, PlusIcon } from "@/components/icons";
 
 const ITEMS = [
   { href: "/", label: "Home", Icon: HomeIcon },
@@ -10,6 +10,10 @@ const ITEMS = [
   { href: "/accounts", label: "Accounts", Icon: AccountsIcon },
   { href: "/more", label: "More", Icon: MoreIcon },
 ];
+
+// Insights sit in the side navigation. On a phone the tab bar has no room, so
+// they're reached from Home and More.
+const INSIGHTS = { href: "/insights", label: "Insights", Icon: InsightsIcon };
 
 // One tap away on every screen (FR-2).
 const ADD = { href: "/add", label: "Add", Icon: PlusIcon };
@@ -31,7 +35,7 @@ export function SideNav() {
         <PlusIcon className="size-5" />
         Add entry
       </Link>
-      {ITEMS.map(({ href, label, Icon }) => {
+      {[ITEMS[0], INSIGHTS, ...ITEMS.slice(1)].map(({ href, label, Icon }) => {
         const active = isActive(pathname, href);
         return (
           <Link

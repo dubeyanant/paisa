@@ -121,6 +121,8 @@ describe("INS-03 emergency fund coverage", () => {
     ];
     const result = emergencyFundCoverage(transactions, accountList, sep, firstDateOf(transactions));
     expect(result).toEqual({ ready: true, balance: 10000000, monthlySpending: 4000000, months: 2.5 });
+    const given = emergencyFundCoverage(transactions, accountList, sep, firstDateOf(transactions), new Map([["ef", 2000000]]));
+    expect(given).toEqual({ ready: true, balance: 2000000, monthlySpending: 4000000, months: 0.5 });
   });
 
   test("waits for one complete month", () => {

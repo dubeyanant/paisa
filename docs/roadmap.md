@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 8 done, step 9 started with Home).
+Last updated: 2026-09-29 (step 9: Home and Insights done, tag reports next).
 
 ## Phase 1: replace the old app
 
@@ -17,7 +17,7 @@ Last updated: 2026-09-29 (step 8 done, step 9 started with Home).
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Done | PRs #12 to #15, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
 | 8 | Recurring commitments and budget rules (FR-6, FR-7) | Done | PRs #16 to #22, TD-16, TD-18 |
-| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | In progress: Home done, Insights and tag reports to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
+| 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | In progress: Home and Insights done, tag reports to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
 It also covers the Phase 2 insights INS-07, 08, 11, 12, 15 and 18, which cost little
@@ -30,14 +30,21 @@ step 5 on works against real data from day one.
 
 Step 9 ships in three PRs based on `main`. None needs a migration.
 
-- **9a: Home (FR-8).** Available to spend leads. Below it, this month at a glance: free
+- **9a (#23): Home (FR-8).** Available to spend leads. Below it, this month at a glance: free
   money left with committed vs free (INS-01), spending against a usual month (INS-04),
   savings rate against last month (INS-02) and each budget bucket (INS-17). The top 3
   alerts (INS-19) come next, then Due now, the next 3 planned payments with the 30-day
   total (INS-10), and the latest entries. Overdue payments aren't among Home's alerts,
   since Due now lists them with a Confirm button. Headlines are in `src/lib/home.ts`.
-- **9b: Insights screen (FR-8.4).** INS-03 to 06 and 09, each with a headline, and charts
-  with Recharts (TD-17). Wide charts can be laptop-only, with a short stand-in on a phone.
+- **9b: Insights screen (FR-8.4).** Each insight has a headline with a number, or says how
+  many more months it needs (FR-9 AC2): savings rate with a 6-month Recharts chart (INS-02),
+  emergency fund cover (INS-03), pace by category (INS-04), categories against usual with
+  their last 6 months (INS-05), the top 3 small spends (INS-06), and every recurring payment
+  with its monthly and yearly cost and price changes (INS-09). Coming up (INS-10) and Budget
+  (INS-17) show as headlines that link to their screens. Every part fits a phone, so none is
+  laptop-only. Insights is in the side navigation; on a phone the tab bar has no room, so
+  it's reached from Home's alerts and from More. Settings sets the small-spend limit
+  (₹50 to ₹1,000, ₹200 by default). Headlines are in `src/lib/insights.ts`.
 - **9c: tag reports (INS-13).** On a tag's screen: total, days, cost per day, the
   breakdown by category and a comparison with other tags.
 

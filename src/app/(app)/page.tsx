@@ -190,28 +190,36 @@ export default async function Home() {
 // The top alerts (INS-19). On a phone they come right after available to
 // spend; on a laptop they head the right-hand column.
 function Alerts({ alerts, className }: { alerts: AlertText[]; className: string }) {
-  if (alerts.length === 0) return null;
   return (
     <section className={className}>
-      <h2 className="mb-1 flex min-h-11 items-center text-lg font-semibold">Alerts</h2>
-      <Card>
-        <ul className="divide-y divide-line">
-          {alerts.map((a) => (
-            <li key={a.title}>
-              <Link
-                href={a.href}
-                className="flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-foreground/[0.03]"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{a.title}</p>
-                  <p className="text-sm text-muted">{a.detail}</p>
-                </div>
-                <ChevronRightIcon className="-mr-1 size-5 shrink-0 text-muted" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Alerts</h2>
+        <Link href="/insights" className="flex h-11 items-center text-sm font-medium text-accent">
+          All insights
+        </Link>
+      </div>
+      {alerts.length === 0 ? (
+        <Card className="px-4 py-3.5 text-sm text-muted">Nothing to flag right now.</Card>
+      ) : (
+        <Card>
+          <ul className="divide-y divide-line">
+            {alerts.map((a) => (
+              <li key={a.title}>
+                <Link
+                  href={a.href}
+                  className="flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-foreground/[0.03]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{a.title}</p>
+                    <p className="text-sm text-muted">{a.detail}</p>
+                  </div>
+                  <ChevronRightIcon className="-mr-1 size-5 shrink-0 text-muted" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </section>
   );
 }
