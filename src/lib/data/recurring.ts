@@ -1,7 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { isUuid } from "@/lib/data/accounts";
+import { getRecentTransactions } from "@/lib/data/budget";
 import type { Entry } from "@/lib/data/entries";
 import { addDays, istDate, istStartOf } from "@/lib/finance/dates";
 import type { Commitment, Transaction } from "@/lib/finance/types";
@@ -24,13 +26,13 @@ function toCommitment(row: Record<string, unknown>): CommitmentRow {
   };
 }
 
-export async function listCommitments(): Promise<CommitmentRow[]> {
+export const listCommitments = cache(async (): Promise<CommitmentRow[]> => {
   await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase.from("recurring_commitments").select(COMMITMENT_COLUMNS).order("name");
   if (error) throw error;
   return (data as Record<string, unknown>[]).map(toCommitment);
-}
+});
 
 export async function getCommitment(id: string): Promise<CommitmentRow> {
   await requireUser();
@@ -48,7 +50,7 @@ export async function getCommitment(id: string): Promise<CommitmentRow> {
 
 // Every payment linked to a commitment, and every planned entry: what the
 // due dates, Upcoming and reserved money are worked out from.
-export async function getScheduleTransactions(): Promise<Transaction[]> {
+export const getScheduleTransactions = cache(async (): Promise<Transaction[]> => {
   await requireUser();
   const supabase = await createClient();
   const [linked, planned] = await Promise.all([
@@ -73,39 +75,32 @@ export async function getScheduleTransactions(): Promise<Transaction[]> {
   ]);
   const byId = new Map([...linked, ...planned].map((t) => [t.id, t]));
   return [...byId.values()];
-}
+});
 
 // How far back detection looks. Long enough for three payments every 6 months.
-const DETECTION_DAYS = 400;
+export const DETECTION_DAYS = 400;
 
 // Confirmed expenses and transfers of the last DETECTION_DAYS that no
 // commitment covers yet, to find recurring payments in (FR-6).
 export async function getDetectionHistory(): Promise<Transaction[]> {
-  await requireUser();
-  const supabase = await createClient();
-  const since = addDays(istDate(new Date()), -DETECTION_DAYS);
-  return allRows((from, to) =>
-    supabase
-      .from("transactions")
-      .select(TRANSACTION_COLUMNS)
-      .in("kind", ["expense", "transfer"])
-      .eq("is_planned", false)
-      .is("recurring_id", null)
-      .gte("occurred_at", istStartOf(since).toISOString())
-      .order("occurred_at")
-      .order("id")
-      .range(from, to),
+  const since = istStartOf(addDays(istDate(new Date()), -DETECTION_DAYS)).getTime();
+  return (await getRecentTransactions(DETECTION_DAYS)).filter(
+    (t) =>
+      (t.kind === "expense" || t.kind === "transfer") &&
+      !t.is_planned &&
+      !t.recurring_id &&
+      Date.parse(t.occurred_at) >= since,
   );
 }
 
 // The budget month start day (FR-12), for reserved money.
-export async function getBudgetMonthStartDay(): Promise<number> {
+export const getBudgetMonthStartDay = cache(async (): Promise<number> => {
   await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase.from("settings").select("budget_month_start_day").maybeSingle();
   if (error) throw error;
   return data?.budget_month_start_day ?? 1;
-}
+});
 
 // A commitment's latest payments, newest first.
 export async function getCommitmentPayments(id: string, limit = 24): Promise<Entry[]> {

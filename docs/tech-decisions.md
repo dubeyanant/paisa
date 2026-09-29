@@ -203,12 +203,22 @@ Add a new entry when a decision is made, with the date and the reason.
   - **The move:** the new project's schema and migration history came from a one-time `supabase db push` into the empty database. It's the only exception to TD-3's rule, and it does what the GitHub integration would. The data, the owner's sign-in included (same user ID and password), was copied with `pg_dump --data-only` and restored with triggers paused, so no default data was created twice. Before the app switched, a read-only check matched both sides by row count and a checksum of every row, for every table and for the balances, along with the migrations, RLS policies, grants and functions. The app changed only its URL and publishable key.
 - **Why:** Pages were slow to load. Vercel ran the functions in Washington DC (its default) and the database was in Seoul, so each of a page's rounds of queries took about 190 ms before the page reached the owner in Mumbai. With the owner, the functions and the database in one city, each round takes a few milliseconds.
 
-### TD-20 Screens appear in parts, and stay for 30 seconds
+### TD-20 Screens load in one round, appear in parts, and stay for 30 seconds
 - **Date:** 2026-09-29
 - **Decision:**
-  - **Home streams:** the page starts every load once and passes the promises to its parts, each in its own `<Suspense>` with a placeholder the size of the part. The header shows at once. Available to spend, Due now and the latest entries follow the first round of queries, and the insights and alerts the second.
+  - **One round of queries per screen.** A screen starts every load at once. Home, Insights and Budget used to wait for the budget month start day before loading their history. Now they load enough days to cover any start day (`daysBackFor()`, a month being at most 31 days) and keep the months they need (`inMonths()`).
+  - **Long ranges load in slices at once.** `getRecentTransactions(days)` splits the range into 60-day slices loaded side by side, instead of 1,000-row pages one after another. Insights and Planned use one 400-day load for both the history and recurring-payment detection.
+  - **Loads shared within a request run once:** accounts, labels, planned payments, settings, the budget rule and tags are wrapped in React's `cache()`.
+  - **Screens with slow parts stream them:** each part is its own `<Suspense>` with a placeholder the size of the part, and the header shows at once.
+    - Home: available to spend, Due now and the latest entries first, then the insights and alerts.
+    - Insights: each card.
+    - Budget: the whole body.
+    - Planned: the suggestions found in your entries after the rest.
+    - Entries: the filters, then the results. When the filters change, the old results stay until the new ones are in.
+    - A tag's screen: its suggested entries after the rest.
+  - The other screens load in one round in about 100 ms, and `loading.tsx` covers the wait, so they don't stream: a header-first step there would only add a second flash.
   - **Client cache:** `experimental.staleTimes.dynamic` is 30 seconds, so going back to a screen seen in the last 30 seconds is instant. Every save calls `revalidatePath("/", "layout")`, which clears this cache, so a screen never shows figures from before a save. A change made on another device can take up to 30 seconds to show.
-- **Why:** The owner found screens blank for too long before anything showed (TD-19 covers the network side).
+- **Why:** The owner found screens blank for too long before anything showed. TD-19 covers the network side.
 
 ## Open decisions
 

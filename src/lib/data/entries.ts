@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { isUuid } from "@/lib/data/accounts";
@@ -70,7 +71,7 @@ export async function getEntryContext(): Promise<EntryContext> {
 }
 
 // Every account and subcategory, to name entries and offer choices.
-export async function getLabels(): Promise<Omit<EntryContext, "recent" | "tags">> {
+export const getLabels = cache(async (): Promise<Omit<EntryContext, "recent" | "tags">> => {
   await requireUser();
   const supabase = await createClient();
   const [accounts, categories, subcategories] = await Promise.all([
@@ -112,7 +113,7 @@ export async function getLabels(): Promise<Omit<EntryContext, "recent" | "tags">
     accounts: accounts.data!.map((a) => ({ id: a.id, name: a.name, type: a.type, archived: Boolean(a.archived_at) })),
     subcategories: subs.map((s) => s.option),
   };
-}
+});
 
 // The latest entries that have happened. Planned ones show under Planned.
 export async function getLatestEntries(limit = 20) {

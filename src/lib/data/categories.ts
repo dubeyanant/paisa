@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { isUuid } from "@/lib/data/accounts";
@@ -86,7 +87,7 @@ export type TagRow = {
 };
 
 // Every tag, newest first, with how many entries carry it.
-export async function listTags(): Promise<TagRow[]> {
+export const listTags = cache(async (): Promise<TagRow[]> => {
   await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -101,7 +102,7 @@ export async function listTags(): Promise<TagRow[]> {
     ends_on: t.ends_on,
     entries: (t.transaction_tags as unknown as { count: number }[])[0]?.count ?? 0,
   }));
-}
+});
 
 export async function getTag(id: string): Promise<TagRow> {
   await requireUser();

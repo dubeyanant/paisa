@@ -27,16 +27,15 @@ type Latest = Awaited<ReturnType<typeof getLatestEntries>>;
 // spending pace, last month's savings rate, budget buckets), the top alerts
 // (INS-19), planned payments due now and coming up, and the latest entries.
 //
-// Each part shows as soon as its own data is ready: available to spend, Due
-// now and the latest entries after the first round of queries, the insights
-// and alerts after the second. The loads start here, once, and the parts
-// share them.
+// Every load starts here at once, and each part shows as soon as its own
+// data is ready: available to spend, Due now and the latest entries first,
+// then the insights and alerts, which also need 7 months of entries.
 export default function Home() {
   const now = new Date();
   const summary = getMoneySummary(now);
   const labels = getLabels();
   const latest = getLatestEntries();
-  const insights = Promise.all([summary, labels]).then(([s, l]) => getHomeInsights({ ...s, labels: l }));
+  const insights = getHomeInsights(summary, labels);
   const alerts = Promise.all([summary, labels, insights]).then(([s, l, i]) => alertTexts(s, l, i));
 
   return (

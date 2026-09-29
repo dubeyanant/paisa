@@ -34,7 +34,10 @@ The owner found every page slow to appear. Fixes, in order:
    Mumbai, and Vercel's functions from Washington DC to Mumbai. Done.
 2. Keep recently visited screens for 30 seconds (`staleTimes.dynamic`), so switching back to one is instant. Done (TD-20).
 3. Stream Home in parts, so available to spend shows before the insights. Done (TD-20).
-4. Fewer rounds of queries per screen, where it still shows.
+4. One round of queries per screen, history in slices loaded at once, and streaming on Insights, Budget,
+   Planned, Entries and tag screens. Done (TD-20).
+5. Cold starts: the first page after about 20 idle minutes takes about 2 s before anything shows. Next:
+   check Fluid compute and keep the server warm with a ping.
 
 ## Step 9 in detail
 

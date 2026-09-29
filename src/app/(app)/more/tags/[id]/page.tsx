@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ChevronRightIcon } from "@/components/icons";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { getTag } from "@/lib/data/categories";
@@ -18,12 +19,13 @@ export const metadata: Metadata = { title: "Tag · Paisa" };
 
 export default async function TagPage({ params }: PageProps<"/more/tags/[id]">) {
   const { id } = await params;
-  const tag = await getTag(id);
-  const [{ tags, reports, categoryOf, categoryName, subcategoryName }, labels, suggestions] = await Promise.all([
+  const [tag, { tags, reports, categoryOf, categoryName, subcategoryName }, labels] = await Promise.all([
+    getTag(id),
     getTagReports(),
     getLabels(),
-    tag.starts_on && tag.ends_on ? getTagSuggestions(tag.id, tag.starts_on, tag.ends_on) : [],
   ]);
+  // They need the tag's dates, so they come a moment after the rest.
+  const suggestions = tag.starts_on && tag.ends_on ? getTagSuggestions(tag.id, tag.starts_on, tag.ends_on) : null;
   const today = istDate(new Date());
   const report = reports.get(tag.id);
   const category = (id: string) => categoryName.get(id) ?? "Other";
@@ -56,14 +58,10 @@ export default async function TagPage({ params }: PageProps<"/more/tags/[id]">) 
           )}
         </Card>
 
-        {suggestions.length > 0 && (
-          <section className="min-w-0 lg:col-start-2 lg:row-span-4 lg:row-start-1">
-            <h2 className="text-lg font-semibold">Suggested</h2>
-            <p className="mt-1 mb-3 text-sm text-muted">
-              Entries from the tag&apos;s dates that don&apos;t have it yet. Choose the ones that belong.
-            </p>
-            <Suggestions tagId={tag.id} entries={suggestions} {...labels} />
-          </section>
+        {suggestions && (
+          <Suspense fallback={null}>
+            <Suggested tagId={tag.id} suggestions={suggestions} labels={labels} />
+          </Suspense>
         )}
 
         {report && report.total > 0 && (
@@ -97,6 +95,29 @@ export default async function TagPage({ params }: PageProps<"/more/tags/[id]">) 
 
 // INS-13 by category, biggest first, each with its subcategories. Refunds are
 // netted off (BR-6).
+// Entries from the tag's dates that don't have it yet.
+async function Suggested({
+  tagId,
+  suggestions,
+  labels,
+}: {
+  tagId: string;
+  suggestions: ReturnType<typeof getTagSuggestions>;
+  labels: Awaited<ReturnType<typeof getLabels>>;
+}) {
+  const entries = await suggestions;
+  if (entries.length === 0) return null;
+  return (
+    <section className="min-w-0 lg:col-start-2 lg:row-span-4 lg:row-start-1">
+      <h2 className="text-lg font-semibold">Suggested</h2>
+      <p className="mt-1 mb-3 text-sm text-muted">
+        Entries from the tag&apos;s dates that don&apos;t have it yet. Choose the ones that belong.
+      </p>
+      <Suggestions tagId={tagId} entries={entries} {...labels} />
+    </section>
+  );
+}
+
 function Breakdown({
   report,
   categoryOf,

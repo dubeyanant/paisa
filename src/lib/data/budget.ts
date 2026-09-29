@@ -1,8 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { requireUser } from "@/lib/auth";
 import { allRows, TRANSACTION_COLUMNS } from "@/lib/data/paging";
 import type { BudgetRule } from "@/lib/finance/budget";
-import { istStartOf, type Period } from "@/lib/finance/dates";
+import { addDays, istDate, istStartOf, periodContains, type Period } from "@/lib/finance/dates";
 import type { BudgetBucket, Transaction } from "@/lib/finance/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,7 +13,7 @@ export type ActiveRule = BudgetRule & { id: string; name: string };
 
 // The active rule, its buckets in order, and which bucket each subcategory is
 // in. Every user gets one when their account is made (TD-13).
-export async function getActiveRule(): Promise<ActiveRule | null> {
+export const getActiveRule = cache(async (): Promise<ActiveRule | null> => {
   await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -34,27 +35,50 @@ export async function getActiveRule(): Promise<ActiveRule | null> {
     buckets: rows.map(({ id, name, share_bp, holds_savings }) => ({ id, name, share_bp, holds_savings })),
     assignments: new Map(rows.flatMap((b) => b.bucket_assignments.map((a) => [a.subcategory_id, b.id] as const))),
   };
+});
+
+// A budget month is at most 31 days, so this many days back always reaches
+// the start of the budget month `months` before this one, whatever day
+// months start on. Screens load that much before they know which day that
+// is, in the same round as everything else, then keep the months they need
+// with inMonths().
+export function daysBackFor(months: number) {
+  return (months + 1) * 31;
 }
 
-// Every transaction from the start of `from` to the end of `to`: enough for
-// a month's figures and the months of history before it.
-export async function getTransactionsBetween(from: Period, to: Period): Promise<Transaction[]> {
+// How many days one request covers when a long range loads at once.
+const SLICE_DAYS = 60;
+
+// Every transaction from `days` days ago on, future-dated ones included. One
+// request returns at most 1,000 rows, so instead of page after page the range
+// comes as slices of SLICE_DAYS, all at the same time.
+export const getRecentTransactions = cache(async (days: number): Promise<Transaction[]> => {
   await requireUser();
   const supabase = await createClient();
-  return allRows((start, end) =>
-    supabase
-      .from("transactions")
-      .select(TRANSACTION_COLUMNS)
-      .gte("occurred_at", istStartOf(from.start).toISOString())
-      .lt("occurred_at", istStartOf(to.end).toISOString())
-      .order("occurred_at")
-      .order("id")
-      .range(start, end),
+  const today = istDate(new Date());
+  const starts: string[] = [];
+  for (let day = addDays(today, -days); day <= today; day = addDays(day, SLICE_DAYS)) starts.push(day);
+  const slices = await Promise.all(
+    starts.map((start, i) =>
+      allRows((from, to) => {
+        let query = supabase.from("transactions").select(TRANSACTION_COLUMNS).gte("occurred_at", istStartOf(start).toISOString());
+        // The last slice is open-ended, so it has planned entries still to come.
+        if (i < starts.length - 1) query = query.lt("occurred_at", istStartOf(starts[i + 1]).toISOString());
+        return query.order("occurred_at").order("id").range(from, to);
+      }),
+    ),
   );
+  return slices.flat();
+});
+
+// The transactions from the start of `from` to the end of `to`.
+export function inMonths(transactions: Transaction[], from: Period, to: Period): Transaction[] {
+  const range = { start: from.start, end: to.end };
+  return transactions.filter((t) => periodContains(range, t.occurred_at));
 }
 
 // The date of the owner's first entry, so months before it aren't judged.
-export async function getFirstEntryDate(): Promise<string | null> {
+export const getFirstEntryDate = cache(async (): Promise<string | null> => {
   await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -66,4 +90,4 @@ export async function getFirstEntryDate(): Promise<string | null> {
     .limit(1);
   if (error) throw error;
   return data[0]?.occurred_at ?? null;
-}
+});
