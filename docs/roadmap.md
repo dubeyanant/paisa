@@ -16,7 +16,7 @@ Last updated: 2026-09-29 (step 8 started).
 | 5 | App shell, Accounts screen and fast entry (FR-1, FR-2, FR-3) | Done | PRs #10 and #11, TD-14, TD-15 |
 | 6 | Transaction list, category management, tags (FR-4, FR-5, FR-8.3) | Done | PRs #12 to #15, TD-15 |
 | 7 | History import (FR-14) | Done, as a script | PRs #6 and #7, TD-12 |
-| 8 | **Recurring commitments and budget rules (FR-6, FR-7)** | **In progress** | 8a: skipping a due date, TD-16 |
+| 8 | **Recurring commitments and budget rules (FR-6, FR-7)** | **In progress** | PR #16 (8a), 8b: recurring screens, TD-16 |
 | 9 | Home and the Phase 1 insights: INS-01 to 06, 09, 10, 13, 17, 19 (FR-8, FR-9) | Logic done, screens to do | `src/lib/finance/`, TD-16, TD-17 (charts) |
 
 The logic for steps 8 and 9 was built alongside step 5, since it touches no screens.
@@ -31,12 +31,13 @@ step 5 on works against real data from day one.
 Step 8 ships in three parts, each a PR based on `main`. **8a** adds the one migration
 the screens need, and merges first (TD-3).
 
-- **8a: skipping a due date.** `recurring_skips` holds due dates the owner skipped, and
+- **8a (#16): skipping a due date.** `recurring_skips` holds due dates the owner skipped, and
   the calculation library leaves them out of the schedule (TD-16).
 - **8b: recurring commitments (FR-6).** More → Recurring lists, adds, edits, pauses and
-  deletes commitments. Pending entries are confirmed with one tap, with the amount
-  editable first, or skipped. Upcoming shows the next 30 days with a total. Payments the
-  app detects in the history are offered as new commitments.
+  deletes commitments, and shows money reserved this month. Due now (also on Home) confirms
+  a due date with one tap, with the amount editable first, or skips it with an undo, and
+  confirms planned entries whose date has come (BR-7). Coming up shows the next 30 days
+  with a total. Payments detected in the history are offered as new commitments.
 - **8c: budget rules (FR-7).** The Budget screen shows each bucket's target, actual,
   remaining, share of the base and pace, and how each of the last 6 months went. Rules:
   pick a preset or make a custom one (2 to 6 buckets adding up to 100%), and choose the
