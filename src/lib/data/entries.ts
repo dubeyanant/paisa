@@ -127,7 +127,8 @@ export async function getLatestEntries(limit = 20) {
     .order("occurred_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return { latest: data.map(toEntry) };
+  // A full page may stop partway through a day.
+  return { latest: data.map(toEntry), more: data.length === limit };
 }
 
 export async function getEntry(id: string): Promise<Entry> {

@@ -45,25 +45,44 @@ export default function InsightsPage() {
       <Suspense fallback={<div className="-mt-3 mb-5 h-5 md:-mt-6 md:mb-8" />}>
         <MonthLabel view={view} />
       </Suspense>
-      <div className="grid items-start gap-4 md:grid-cols-2 md:gap-6">
-        <Suspense fallback={<Placeholder className="h-96" />}>
-          <SavingsSection view={view} />
-        </Suspense>
-        <Suspense fallback={<Placeholder className="h-28" />}>
-          <EmergencySection view={view} />
-        </Suspense>
-        <Suspense fallback={<Placeholder className="h-80" />}>
-          <PaceSection view={view} />
-        </Suspense>
-        <Suspense fallback={<Placeholder className="h-80" />}>
-          <TrendSection view={view} />
-        </Suspense>
-        <Suspense fallback={<Placeholder className="h-56" />}>
-          <SmallSpendSection view={view} />
-        </Suspense>
-        <Suspense fallback={<Placeholder className="h-72" />}>
-          <RecurringSection view={view} />
-        </Suspense>
+      {/* Two columns on larger screens, each card right under the one above it.
+          On a phone the columns dissolve and `order` keeps the cards in reading
+          order. */}
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:items-start md:gap-6">
+        <div className="contents md:flex md:flex-col md:gap-6">
+          <div className="order-1">
+            <Suspense fallback={<Placeholder className="h-96" />}>
+              <SavingsSection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-3">
+            <Suspense fallback={<Placeholder className="h-80" />}>
+              <PaceSection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-5">
+            <Suspense fallback={<Placeholder className="h-56" />}>
+              <SmallSpendSection view={view} />
+            </Suspense>
+          </div>
+        </div>
+        <div className="contents md:flex md:flex-col md:gap-6">
+          <div className="order-2">
+            <Suspense fallback={<Placeholder className="h-28" />}>
+              <EmergencySection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-4">
+            <Suspense fallback={<Placeholder className="h-80" />}>
+              <TrendSection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-6">
+            <Suspense fallback={<Placeholder className="h-72" />}>
+              <RecurringSection view={view} />
+            </Suspense>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -127,27 +146,36 @@ async function SavingsSection({ view }: { view: Promise<View> }) {
         />
       )}
       {savings.length > 0 && (
-        <ul className="divide-y divide-line">
+        <ul className="-mx-2 divide-y divide-line">
           {[...savings].reverse().map((m) => {
             const rate = sensibleRate(m);
             return (
-              <li key={m.period.start} className="flex items-center gap-3 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{periodLabel(m.period)}</p>
-                  <p className="text-sm text-muted tabular-nums">
-                    Earned {formatINR(m.income)} · spent {formatINR(m.spending)}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right tabular-nums">
-                  <p className={`font-medium ${m.saved < 0 ? "text-negative" : ""}`}>{formatINR(m.saved)}</p>
-                  {rate !== null && <p className="text-sm text-muted">{percent(rate)}</p>}
-                </div>
+              <li key={m.period.start}>
+                <Link
+                  href={`/entries?${filtersQuery({ from: m.period.start, to: addDays(m.period.end, -1) })}`}
+                  className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-foreground/[0.03]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{periodLabel(m.period)}</p>
+                    <p className="text-sm text-muted tabular-nums">
+                      Earned {formatINR(m.income)} · spent {formatINR(m.spending)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right tabular-nums">
+                    <p className={`font-medium ${m.saved < 0 ? "text-negative" : ""}`}>{formatINR(m.saved)}</p>
+                    {rate !== null && <p className="text-sm text-muted">{percent(rate)}</p>}
+                  </div>
+                  <ChevronRightIcon className="-mr-1 size-4 shrink-0 text-muted" />
+                </Link>
               </li>
             );
           })}
         </ul>
       )}
-      <p className="text-sm text-muted">Saved is what you earned minus what you spent. This month shows once it&rsquo;s over.</p>
+      <p className="text-sm text-muted">
+        Saved is what you earned minus what you spent. This month shows once it&rsquo;s over. Tap a month to see its
+        entries.
+      </p>
     </Section>
   );
 }

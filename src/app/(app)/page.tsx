@@ -40,7 +40,9 @@ export default function Home() {
     <>
       <PageHeader title="Paisa" />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-8">
-        <div className="flex min-w-0 flex-col gap-6">
+        {/* On a laptop the left column stays put while the right one scrolls. A
+            window too short for it scrolls it on its own. */}
+        <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto">
           <Suspense fallback={<Placeholder className="h-52 md:h-60" />}>
             <Spendable summary={summary} />
           </Suspense>
@@ -186,7 +188,7 @@ async function Planned({ summary, labels, now }: { summary: Promise<Summary>; la
 }
 
 async function LatestEntries({ latest: loading, labels }: { latest: Promise<Latest>; labels: Promise<Labels> }) {
-  const [{ latest }, l] = await Promise.all([loading, labels]);
+  const [{ latest, more }, l] = await Promise.all([loading, labels]);
   return (
     <section>
       <div className="mb-1 flex min-h-11 items-center justify-between gap-3">
@@ -198,7 +200,7 @@ async function LatestEntries({ latest: loading, labels }: { latest: Promise<Late
         )}
       </div>
       {latest.length > 0 ? (
-        <EntryList entries={latest} {...l} />
+        <EntryList entries={latest} more={more} {...l} />
       ) : (
         <Card className="p-6 text-center">
           <p className="font-medium">Nothing logged yet</p>

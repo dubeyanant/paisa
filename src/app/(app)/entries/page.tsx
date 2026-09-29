@@ -99,7 +99,7 @@ async function Results({
       ) : (
         <div className="flex flex-col gap-5">
           <Totals totals={totals} />
-          <EntryList entries={entries} {...labels} showPlanned />
+          <EntryList entries={entries} {...labels} showPlanned more={entries.length < totals.entries} />
           {entries.length < totals.entries && (
             <div className="flex flex-col items-center gap-2 text-center">
               <p className="text-sm text-muted">

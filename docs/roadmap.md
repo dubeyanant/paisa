@@ -53,6 +53,11 @@ The owner wants each screen to keep only what gets used: the 20% of features tha
   decides whether it's used; the "above usual" and price-rise flags stay too.
 - **Navigation:** on a laptop, Insights and Budget are in the side navigation, and More
   lists only the rest. On a phone the tab bar is unchanged, and More lists them all.
+- **Layout and links:** on a laptop, Home's left column (available to spend and budget) stays
+  put while the right one scrolls, and Insights stacks its cards in two columns without
+  gaps. Each saved month on Insights opens that month's entries. Entry lists on Home and
+  Entries show each day's net (income and refunds minus expenses, like the Entries
+  totals); a day the list may have cut short shows none.
 
 ## Step 9 in detail
 
