@@ -2,14 +2,11 @@
 // a number (FR-8 AC2), or when it'll be ready (FR-9 AC2). The figures come from
 // src/lib/finance/.
 
-import { streakLabel } from "@/lib/budget";
 import { hotEnough } from "@/lib/finance/alerts";
-import type { BucketAdherence } from "@/lib/finance/budget";
 import type { Commitment } from "@/lib/finance/types";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type {
   CategoryTrend,
-  CommittedVsFree,
   EmergencyFund,
   Pace,
   Ready,
@@ -17,27 +14,12 @@ import type {
   SmallSpend,
 } from "@/lib/finance/insights";
 import { formatINR } from "@/lib/finance/money";
-import type { UpcomingItem } from "@/lib/finance/recurring";
 import type { TagReport } from "@/lib/finance/tags";
-import { addDays } from "@/lib/finance/dates";
 import { percent, times } from "@/lib/home";
 
 // "Available after 2 more months of entries."
 export function notReady(monthsToGo: number): string {
   return `Available after ${monthsToGo} more ${monthsToGo === 1 ? "month" : "months"} of entries.`;
-}
-
-// INS-01: "₹43,090 of your ₹82,641 income this month goes to planned payments (52%)."
-export function committedHeadline(c: CommittedVsFree): string {
-  if (c.income === 0) {
-    return c.committed > 0
-      ? `No income yet this month. ${formatINR(c.committed)} of planned payments are due.`
-      : "No income yet this month.";
-  }
-  if (c.committed > c.income) {
-    return `${formatINR(c.committed)} of planned payments are due this month, more than your ${formatINR(c.income)} income so far.`;
-  }
-  return `${formatINR(c.committed)} of your ${formatINR(c.income)} income this month goes to planned payments (${percent(c.committed / c.income)}).`;
 }
 
 // A month's savings rate, or null when it says nothing: no income, or spending
@@ -136,35 +118,6 @@ export function subscriptionsHeadline(payments: RecurringPayment[], name: (p: Re
 export function howOften({ unit, every }: Pick<Commitment, "unit" | "every">): string {
   if (every === 1) return { week: "Weekly", month: "Monthly", year: "Yearly" }[unit];
   return `Every ${every} ${unit}s`;
-}
-
-// INS-10: "₹30,000 due in the next 10 days."
-export function upcomingHeadline(items: UpcomingItem[], today: string): string {
-  const overdue = items.filter((i) => i.overdue).reduce((sum, i) => sum + i.amount, 0);
-  const soon = items.filter((i) => !i.overdue && i.date <= addDays(today, 10)).reduce((sum, i) => sum + i.amount, 0);
-  const later = items.filter((i) => !i.overdue).reduce((sum, i) => sum + i.amount, 0);
-  if (overdue === 0 && later === 0) return "Nothing due in the next 30 days.";
-  const parts = [
-    soon > 0 ? `${formatINR(soon)} due in the next 10 days` : null,
-    later > soon ? `${formatINR(later)} in the next 30` : null,
-    overdue > 0 ? `${formatINR(overdue)} overdue` : null,
-  ].filter(Boolean);
-  const text = parts.join(", ");
-  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
-}
-
-// INS-17: "Wants at 36% vs 30% target. 3rd month over." The bucket that's
-// furthest off, or all on track.
-export function budgetHeadline(buckets: BucketAdherence[]): string {
-  const off = buckets
-    .filter((b) => b.status !== "on_track")
-    .sort((a, b) => Number(b.status === "over") - Number(a.status === "over") || a.remaining - b.remaining);
-  if (off.length === 0) return "Every bucket is on track this month.";
-  const b = off[0];
-  const share = b.shareOfBase === null ? "" : ` at ${percent(b.shareOfBase)} vs ${b.bucket.share_bp / 100}% target.`;
-  const state = b.bucket.holds_savings ? " is behind" : b.status === "over" ? " is over its target" : " is at risk";
-  const streak = streakLabel(b);
-  return `${b.bucket.name}${share || `${state}.`}${streak ? ` ${streak}.` : ""}`;
 }
 
 // The small-spend thresholds Settings offers (INS-06), in paise. ₹200 is the

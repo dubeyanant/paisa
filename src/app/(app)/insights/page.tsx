@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ChevronRightIcon } from "@/components/icons";
 import { Card, PageHeader } from "@/components/ui";
 import { periodLabel } from "@/lib/budget";
 import { getInsights } from "@/lib/data/insights";
-import { getTagReports } from "@/lib/data/tags";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type { CategoryTrend, Pace } from "@/lib/finance/insights";
 import { hotEnough } from "@/lib/finance/alerts";
@@ -13,8 +13,6 @@ import { formatINR } from "@/lib/finance/money";
 import { filtersQuery } from "@/lib/entry-filters";
 import { percent, times } from "@/lib/home";
 import {
-  budgetHeadline,
-  committedHeadline,
   emergencyHeadline,
   howOften,
   paceHeadline,
@@ -22,9 +20,7 @@ import {
   sensibleRate,
   smallSpendHeadline,
   subscriptionsHeadline,
-  tagHeadline,
   trendHeadline,
-  upcomingHeadline,
 } from "@/lib/insights";
 import { fallbackName, lookups } from "../more/planned/rows";
 import { SavingsChart } from "./savings-chart";
@@ -37,10 +33,65 @@ const TOP = 6;
 
 // The Phase 1 insights (FR-8.4, FR-9), each with a plain-language headline and
 // a chart or list. Budget adherence (INS-17), upcoming bills (INS-10) and tag
-// reports (INS-13) have their own screens, so they show here as headlines that
-// link there.
-export default async function InsightsPage() {
-  const [d, tagData] = await Promise.all([getInsights(), getTagReports()]);
+// reports (INS-13) have their own screens, and aren't repeated here.
+//
+// The header shows at once, and each card as soon as the data is in. Every
+// load starts here, in one round of queries.
+export default function InsightsPage() {
+  const view = getInsights().then(toView);
+  return (
+    <>
+      <PageHeader title="Insights" />
+      <Suspense fallback={<div className="-mt-3 mb-5 h-5 md:-mt-6 md:mb-8" />}>
+        <MonthLabel view={view} />
+      </Suspense>
+      {/* Two columns on larger screens, each card right under the one above it.
+          On a phone the columns dissolve and `order` keeps the cards in reading
+          order. */}
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:items-start md:gap-6">
+        <div className="contents md:flex md:flex-col md:gap-6">
+          <div className="order-1">
+            <Suspense fallback={<Placeholder className="h-96" />}>
+              <SavingsSection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-3">
+            <Suspense fallback={<Placeholder className="h-80" />}>
+              <PaceSection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-5">
+            <Suspense fallback={<Placeholder className="h-56" />}>
+              <SmallSpendSection view={view} />
+            </Suspense>
+          </div>
+        </div>
+        <div className="contents md:flex md:flex-col md:gap-6">
+          <div className="order-2">
+            <Suspense fallback={<Placeholder className="h-28" />}>
+              <EmergencySection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-4">
+            <Suspense fallback={<Placeholder className="h-80" />}>
+              <TrendSection view={view} />
+            </Suspense>
+          </div>
+          <div className="order-6">
+            <Suspense fallback={<Placeholder className="h-72" />}>
+              <RecurringSection view={view} />
+            </Suspense>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+type View = ReturnType<typeof toView>;
+
+// Everything the cards read, with the names and links they share.
+function toView(d: Awaited<ReturnType<typeof getInsights>>) {
   const l = lookups(d.labels);
   const categoryName = new Map(d.labels.subcategories.map((s) => [s.category_id, s.category]));
   const category = (id: string) => categoryName.get(id) ?? "Other";
@@ -65,165 +116,187 @@ export default async function InsightsPage() {
 
   // Months before the first entry have nothing to show.
   const savings = d.savings.filter((m) => d.firstDate !== null && m.period.end > d.firstDate);
-  const topSmall = d.smallSpends[0];
-  // The latest tag with spending (INS-13).
-  const latestTag = [...tagData.reports.values()].find((r) => r.total > 0);
+  return { d, l, category, paymentName, paymentHref, categoryEntries, savings };
+}
 
+// A grey block the size of the card it stands in for, while that card loads.
+function Placeholder({ className }: { className: string }) {
+  return <div aria-hidden className={`animate-pulse rounded-2xl bg-foreground/[0.06] ${className}`} />;
+}
+
+async function MonthLabel({ view }: { view: Promise<View> }) {
+  const { d } = await view;
+  return <p className="-mt-3 mb-5 text-sm text-muted md:-mt-6 md:mb-8">{periodLabel(d.month)}</p>;
+}
+
+async function SavingsSection({ view }: { view: Promise<View> }) {
+  const { savings } = await view;
   return (
-    <>
-      <PageHeader title="Insights" />
-      <p className="-mt-3 mb-5 text-sm text-muted md:-mt-6 md:mb-8">{periodLabel(d.month)}</p>
-      <div className="grid items-start gap-4 md:grid-cols-2 md:gap-6">
-        <Section title="Saved each month" headline={savingsHeadline(savings)}>
-          {savings.length > 1 && (
-            <SavingsChart
-              points={savings.map((m) => {
-                const [, month, day] = m.period.start.split("-").map(Number);
-                return {
-                  label: day === 1 ? MONTHS[month - 1] : `${day} ${MONTHS[month - 1]}`,
-                  full: periodLabel(m.period),
-                  saved: m.saved,
-                };
-              })}
-            />
-          )}
-          {savings.length > 0 && (
-            <ul className="divide-y divide-line">
-              {[...savings].reverse().map((m) => {
-                const rate = sensibleRate(m);
-                return (
-                  <li key={m.period.start} className="flex items-center gap-3 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{periodLabel(m.period)}</p>
-                      <p className="text-sm text-muted tabular-nums">
-                        Earned {formatINR(m.income)} · spent {formatINR(m.spending)}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right tabular-nums">
-                      <p className={`font-medium ${m.saved < 0 ? "text-negative" : ""}`}>{formatINR(m.saved)}</p>
-                      {rate !== null && <p className="text-sm text-muted">{percent(rate)}</p>}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <p className="text-sm text-muted">Saved is what you earned minus what you spent. This month shows once it&rsquo;s over.</p>
-        </Section>
-
-        <Section
-          title="Emergency fund"
-          headline={emergencyHeadline(d.emergency, d.accounts.some((a) => a.is_emergency_fund && !a.archived_at))}
-        >
-          {d.emergency.ready && d.accounts.some((a) => a.is_emergency_fund) && (
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="text-muted">In the fund</dt>
-                <dd className="font-medium tabular-nums">{formatINR(d.emergency.balance)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Usual monthly spending</dt>
-                <dd className="font-medium tabular-nums">{formatINR(d.emergency.monthlySpending)}</dd>
-              </div>
-            </dl>
-          )}
-        </Section>
-
-        <Section title="Everyday spending pace" headline={paceHeadline(d.pace, category)}>
-          {d.pace.ready && <PaceList byCategory={d.pace.byCategory} name={category} href={categoryEntries} />}
-        </Section>
-
-        <Section title="Categories vs usual" headline={trendHeadline(d.trends, category)}>
-          {d.trends.ready && <TrendList byCategory={d.trends.byCategory} name={category} href={categoryEntries} />}
-        </Section>
-
-        <Section
-          title="Small spends"
-          headline={smallSpendHeadline(topSmall, l.subById.get(topSmall?.subcategoryId ?? "")?.name ?? "", d.threshold)}
-        >
-          {d.smallSpends.length > 0 && (
-            <ul className="-mx-2 divide-y divide-line">
-              {d.smallSpends.slice(0, 3).map((s) => (
-                <li key={s.subcategoryId}>
-                  <Link
-                    href={`/entries?${filtersQuery({
-                      from: addDays(d.today, -29),
-                      to: d.today,
-                      kind: "expense",
-                      subcategory: s.subcategoryId,
-                      max: d.threshold - 1,
-                    })}`}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-foreground/[0.03]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{l.subById.get(s.subcategoryId)?.name ?? "Other"}</p>
-                      <p className="text-sm text-muted">
-                        {s.count} {s.count === 1 ? "spend" : "spends"} · about {formatINR(s.yearly)} a year
-                      </p>
-                    </div>
-                    <p className="shrink-0 font-medium tabular-nums">{formatINR(s.total)}</p>
-                    <ChevronRightIcon className="-mr-1 size-4 shrink-0 text-muted" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-2 text-sm text-muted">
-            Spends under {formatINR(d.threshold)} in the last 30 days.{" "}
-            <Link href="/more/settings" className="font-medium text-accent">
-              Change
-            </Link>
-          </p>
-        </Section>
-
-        <Section title="Recurring payments" headline={subscriptionsHeadline(d.recurring, paymentName)}>
-          {d.recurring.length > 0 && (
-            <ul className="-mx-2 divide-y divide-line">
-              {d.recurring.map((p) => (
-                <li key={p.commitment?.id ?? p.series!.key}>
-                  <Link href={paymentHref(p)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-foreground/[0.03]">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{paymentName(p)}</p>
-                      <p className="text-sm text-muted">
-                        {[howOften(p.schedule), p.commitment ? null : "Found in your entries"].filter(Boolean).join(" · ")}
-                      </p>
-                      {p.priceChange && (
-                        <p className="text-sm font-medium text-warning tabular-nums">
-                          {formatINR(p.priceChange.from)} → {formatINR(p.priceChange.to)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right tabular-nums">
-                      <p className="font-medium">{formatINR(p.monthly)}/mo</p>
-                      <p className="text-sm text-muted">{formatINR(p.yearly)}/yr</p>
-                    </div>
-                    <ChevronRightIcon className="-mr-1 size-4 shrink-0 text-muted" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Section>
-
-        <Section title="Income and planned payments" headline={committedHeadline(d.free)} />
-
-        <LinkSection
-          href="/more/planned"
-          title="Coming up"
-          headline={upcomingHeadline(d.upcoming.items, d.today)}
+    <Section title="Saved each month" headline={savingsHeadline(savings)}>
+      {savings.length > 1 && (
+        <SavingsChart
+          points={savings.map((m) => {
+            const [, month, day] = m.period.start.split("-").map(Number);
+            return {
+              label: day === 1 ? MONTHS[month - 1] : `${day} ${MONTHS[month - 1]}`,
+              full: periodLabel(m.period),
+              saved: m.saved,
+            };
+          })}
         />
-        {d.budget && <LinkSection href="/budget" title="Budget" headline={budgetHeadline(d.budget.buckets)} />}
-        <LinkSection
-          href={latestTag ? `/more/tags/${latestTag.tagId}` : "/more/tags"}
-          title="Trips and tags"
-          headline={
-            latestTag
-              ? tagHeadline(tagData.tags.find((t) => t.id === latestTag.tagId)?.name ?? "Latest tag", latestTag, category)
-              : "Tag a trip or an event to see what it cost."
-          }
-        />
-      </div>
-    </>
+      )}
+      {savings.length > 0 && (
+        <ul className="-mx-2 divide-y divide-line">
+          {[...savings].reverse().map((m) => {
+            const rate = sensibleRate(m);
+            return (
+              <li key={m.period.start}>
+                <Link
+                  href={`/entries?${filtersQuery({ from: m.period.start, to: addDays(m.period.end, -1) })}`}
+                  className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-foreground/[0.03]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{periodLabel(m.period)}</p>
+                    <p className="text-sm text-muted tabular-nums">
+                      Earned {formatINR(m.income)} · spent {formatINR(m.spending)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right tabular-nums">
+                    <p className={`font-medium ${m.saved < 0 ? "text-negative" : ""}`}>{formatINR(m.saved)}</p>
+                    {rate !== null && <p className="text-sm text-muted">{percent(rate)}</p>}
+                  </div>
+                  <ChevronRightIcon className="-mr-1 size-4 shrink-0 text-muted" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="text-sm text-muted">
+        Saved is what you earned minus what you spent. This month shows once it&rsquo;s over. Tap a month to see its
+        entries.
+      </p>
+    </Section>
+  );
+}
+
+async function EmergencySection({ view }: { view: Promise<View> }) {
+  const { d } = await view;
+  return (
+    <Section
+      title="Emergency fund"
+      headline={emergencyHeadline(d.emergency, d.accounts.some((a) => a.is_emergency_fund && !a.archived_at))}
+    >
+      {d.emergency.ready && d.accounts.some((a) => a.is_emergency_fund) && (
+        <dl className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <dt className="text-muted">In the fund</dt>
+            <dd className="font-medium tabular-nums">{formatINR(d.emergency.balance)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">Usual monthly spending</dt>
+            <dd className="font-medium tabular-nums">{formatINR(d.emergency.monthlySpending)}</dd>
+          </div>
+        </dl>
+      )}
+    </Section>
+  );
+}
+
+async function PaceSection({ view }: { view: Promise<View> }) {
+  const { d, category, categoryEntries } = await view;
+  return (
+    <Section title="Everyday spending pace" headline={paceHeadline(d.pace, category)}>
+      {d.pace.ready && <PaceList byCategory={d.pace.byCategory} name={category} href={categoryEntries} />}
+    </Section>
+  );
+}
+
+async function TrendSection({ view }: { view: Promise<View> }) {
+  const { d, category, categoryEntries } = await view;
+  return (
+    <Section title="Categories vs usual" headline={trendHeadline(d.trends, category)}>
+      {d.trends.ready && <TrendList byCategory={d.trends.byCategory} name={category} href={categoryEntries} />}
+    </Section>
+  );
+}
+
+async function SmallSpendSection({ view }: { view: Promise<View> }) {
+  const { d, l } = await view;
+  const topSmall = d.smallSpends[0];
+  return (
+    <Section
+      title="Small spends"
+      headline={smallSpendHeadline(topSmall, l.subById.get(topSmall?.subcategoryId ?? "")?.name ?? "", d.threshold)}
+    >
+      {d.smallSpends.length > 0 && (
+        <ul className="-mx-2 divide-y divide-line">
+          {d.smallSpends.slice(0, 3).map((s) => (
+            <li key={s.subcategoryId}>
+              <Link
+                href={`/entries?${filtersQuery({
+                  from: addDays(d.today, -29),
+                  to: d.today,
+                  kind: "expense",
+                  subcategory: s.subcategoryId,
+                  max: d.threshold - 1,
+                })}`}
+                className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-foreground/[0.03]"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{l.subById.get(s.subcategoryId)?.name ?? "Other"}</p>
+                  <p className="text-sm text-muted">
+                    {s.count} {s.count === 1 ? "spend" : "spends"} · about {formatINR(s.yearly)} a year
+                  </p>
+                </div>
+                <p className="shrink-0 font-medium tabular-nums">{formatINR(s.total)}</p>
+                <ChevronRightIcon className="-mr-1 size-4 shrink-0 text-muted" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-sm text-muted">
+        Spends under {formatINR(d.threshold)} in the last 30 days.{" "}
+        <Link href="/more/settings" className="font-medium text-accent">
+          Change
+        </Link>
+      </p>
+    </Section>
+  );
+}
+
+async function RecurringSection({ view }: { view: Promise<View> }) {
+  const { d, paymentName, paymentHref } = await view;
+  return (
+    <Section title="Recurring payments" headline={subscriptionsHeadline(d.recurring, paymentName)}>
+      {d.recurring.length > 0 && (
+        <ul className="-mx-2 divide-y divide-line">
+          {d.recurring.map((p) => (
+            <li key={p.commitment?.id ?? p.series!.key}>
+              <Link href={paymentHref(p)} className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-foreground/[0.03]">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{paymentName(p)}</p>
+                  <p className="text-sm text-muted">
+                    {[howOften(p.schedule), p.commitment ? null : "Found in your entries"].filter(Boolean).join(" · ")}
+                  </p>
+                  {p.priceChange && (
+                    <p className="text-sm font-medium text-warning tabular-nums">
+                      {formatINR(p.priceChange.from)} → {formatINR(p.priceChange.to)}
+                    </p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right tabular-nums">
+                  <p className="font-medium">{formatINR(p.monthly)}/mo</p>
+                  <p className="text-sm text-muted">{formatINR(p.yearly)}/yr</p>
+                </div>
+                <ChevronRightIcon className="-mr-1 size-4 shrink-0 text-muted" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
   );
 }
 
@@ -236,20 +309,6 @@ function Section({ title, headline, children }: { title: string; headline: strin
       </div>
       {children}
     </Card>
-  );
-}
-
-function LinkSection({ href, title, headline }: { href: string; title: string; headline: string }) {
-  return (
-    <Link href={href} className="block rounded-2xl">
-      <Card className="flex items-center gap-3 p-4 transition-colors hover:bg-foreground/[0.03] md:p-6">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm text-muted">{title}</h2>
-          <p className="mt-1 font-medium">{headline}</p>
-        </div>
-        <ChevronRightIcon className="-mr-1 size-5 shrink-0 text-muted" />
-      </Card>
-    </Link>
   );
 }
 

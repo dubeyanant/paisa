@@ -7,9 +7,11 @@ import { signOut } from "../../login/actions";
 
 export const metadata: Metadata = { title: "More · Paisa" };
 
+// Insights and Budget are in the side navigation on larger screens (nav.tsx),
+// so they're listed here on a phone only.
 const LINKS = [
-  { href: "/insights", label: "Insights", hint: "Savings, pace, trends, small spends and recurring costs" },
-  { href: "/budget", label: "Budget", hint: "Your rule, each bucket this month, and past months" },
+  { href: "/insights", label: "Insights", hint: "Savings, pace, trends, small spends and recurring costs", phoneOnly: true },
+  { href: "/budget", label: "Budget", hint: "Your rule, each bucket this month, and past months", phoneOnly: true },
   { href: "/more/planned", label: "Planned", hint: "Rent, bills and one-off payments, and what's due" },
   { href: "/more/categories", label: "Categories", hint: "Rename, hide, merge, and choose budget buckets" },
   { href: "/more/tags", label: "Tags", hint: "Trips and events, and what they cost" },
@@ -25,7 +27,7 @@ export default async function MorePage() {
         <Card>
           <ul className="divide-y divide-line">
             {LINKS.map((link) => (
-              <li key={link.href}>
+              <li key={link.href} className={link.phoneOnly ? "md:hidden" : undefined}>
                 <Link
                   href={link.href}
                   className="flex min-h-14 items-center gap-3 px-4 py-3 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-foreground/[0.03]"

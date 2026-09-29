@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { getLabels } from "@/lib/data/entries";
@@ -21,21 +22,13 @@ const listItem =
 
 // Planned payments (FR-6, TD-18): what's due now, what's coming up, and every
 // repeating payment, with payments found in the history offered as new ones.
-export default async function PlannedPage() {
+// The header shows at once. Every load starts here; the suggestions, which
+// look through 400 days of entries, can arrive a moment after the rest.
+export default function PlannedPage() {
   const now = new Date();
-  const [{ summary, commitments, scheduled: transactions, month, today }, history, labels] = await Promise.all([
-    getMoneySummary(now),
-    getDetectionHistory(),
-    getLabels(),
-  ]);
-  const l = lookups(labels);
-  const overview = recurringOverview(commitments, transactions, now);
-  const planned = summary.planned;
-  const suggestions = detectRecurring(history, commitments, today);
-
-  const active = commitments.filter((c) => !c.paused_at && (!c.ends_on || c.ends_on >= today));
-  const inactive = commitments.filter((c) => !active.includes(c));
-
+  const summary = getMoneySummary(now);
+  const labels = getLabels();
+  const history = getDetectionHistory();
   return (
     <>
       <PageHeader
@@ -48,6 +41,40 @@ export default async function PlannedPage() {
           </Link>
         }
       />
+      <Suspense
+        fallback={
+          <div aria-hidden className="grid animate-pulse items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8">
+            <div className="h-80 rounded-2xl bg-foreground/[0.06]" />
+            <div className="h-64 rounded-2xl bg-foreground/[0.06]" />
+          </div>
+        }
+      >
+        <Planned summary={summary} labels={labels} history={history} now={now} />
+      </Suspense>
+    </>
+  );
+}
+
+type Loading = {
+  summary: ReturnType<typeof getMoneySummary>;
+  labels: ReturnType<typeof getLabels>;
+  history: ReturnType<typeof getDetectionHistory>;
+};
+
+async function Planned({ summary: loadingSummary, labels: loadingLabels, history, now }: Loading & { now: Date }) {
+  const [{ summary, commitments, scheduled: transactions, month, today }, labels] = await Promise.all([
+    loadingSummary,
+    loadingLabels,
+  ]);
+  const l = lookups(labels);
+  const overview = recurringOverview(commitments, transactions, now);
+  const planned = summary.planned;
+
+  const active = commitments.filter((c) => !c.paused_at && (!c.ends_on || c.ends_on >= today));
+  const inactive = commitments.filter((c) => !active.includes(c));
+
+  return (
+    <>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8">
         <div className="flex min-w-0 flex-col gap-6">
           <Card className="grid grid-cols-2 gap-4 p-4 md:p-6">
@@ -111,51 +138,61 @@ export default async function PlannedPage() {
             )}
           </section>
 
-          {suggestions.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold">Found in your entries</h2>
-              <p className="mt-1 mb-3 text-sm text-muted">These look regular. Add one to track it.</p>
-              <Card>
-                <ul className="divide-y divide-line">
-                  {suggestions.map((s) => {
-                    const name = s.note?.trim() || fallbackName(s, l);
-                    const params = new URLSearchParams({
-                      name,
-                      kind: s.kind,
-                      amount: String(s.amount),
-                      account: s.account_id,
-                      unit: s.unit,
-                      every: String(s.every),
-                      first: s.next_due_on,
-                    });
-                    if (s.to_account_id) params.set("to", s.to_account_id);
-                    if (s.subcategory_id) params.set("sub", s.subcategory_id);
-                    return (
-                      <li key={s.key} className="flex items-center gap-3 px-4 py-2.5">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{name}</p>
-                          <p className="truncate text-sm text-muted">
-                            {formatINR(s.amount)} · {describeSchedule({ ...s, first_due_on: s.next_due_on })} ·{" "}
-                            {paidWith(s, l)}
-                          </p>
-                        </div>
-                        <Link
-                          href={`/more/planned/new?${params}`}
-                          className={`${buttonClass.secondary} shrink-0`}
-                          aria-label={`Add ${name}`}
-                        >
-                          Add
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Card>
-            </section>
-          )}
+          <Suspense fallback={null}>
+            <Suggestions summary={loadingSummary} labels={loadingLabels} history={history} />
+          </Suspense>
         </div>
       </div>
     </>
+  );
+}
+
+// Regular payments found in the entries that aren't planned yet (FR-6).
+async function Suggestions({ summary, labels, history }: Loading) {
+  const [{ commitments, today }, l, transactions] = await Promise.all([summary, labels.then(lookups), history]);
+  const suggestions = detectRecurring(transactions, commitments, today);
+  if (suggestions.length === 0) return null;
+  return (
+    <section>
+      <h2 className="text-lg font-semibold">Found in your entries</h2>
+      <p className="mt-1 mb-3 text-sm text-muted">These look regular. Add one to track it.</p>
+      <Card>
+        <ul className="divide-y divide-line">
+          {suggestions.map((s) => {
+            const name = s.note?.trim() || fallbackName(s, l);
+            const params = new URLSearchParams({
+              name,
+              kind: s.kind,
+              amount: String(s.amount),
+              account: s.account_id,
+              unit: s.unit,
+              every: String(s.every),
+              first: s.next_due_on,
+            });
+            if (s.to_account_id) params.set("to", s.to_account_id);
+            if (s.subcategory_id) params.set("sub", s.subcategory_id);
+            return (
+              <li key={s.key} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{name}</p>
+                  <p className="truncate text-sm text-muted">
+                    {formatINR(s.amount)} · {describeSchedule({ ...s, first_due_on: s.next_due_on })} ·{" "}
+                    {paidWith(s, l)}
+                  </p>
+                </div>
+                <Link
+                  href={`/more/planned/new?${params}`}
+                  className={`${buttonClass.secondary} shrink-0`}
+                  aria-label={`Add ${name}`}
+                >
+                  Add
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+    </section>
   );
 }
 

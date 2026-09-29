@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ const COLUMNS =
   "id, name, type, opening_balance, opening_date, statement_day, due_day, is_emergency_fund, is_blocked, archived_at";
 
 // Every account, archived ones included, with its current balance.
-export async function listAccounts(): Promise<AccountWithBalance[]> {
+export const listAccounts = cache(async (): Promise<AccountWithBalance[]> => {
   await requireUser();
   const supabase = await createClient();
   const [accounts, balances] = await Promise.all([
@@ -47,7 +48,7 @@ export async function listAccounts(): Promise<AccountWithBalance[]> {
     opening_balance: Number(a.opening_balance),
     balance: balanceOf.get(a.id) ?? Number(a.opening_balance),
   }));
-}
+});
 
 // One account, and whether it has any entries (then it can't be deleted).
 export async function getAccount(id: string) {

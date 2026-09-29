@@ -3,7 +3,7 @@
 Where Phase 1 of the [BRD](./personal-finance-dashboard-BRD.md) stands, and what comes next.
 Update this file at the end of each step. Decisions go in [`tech-decisions.md`](./tech-decisions.md).
 
-Last updated: 2026-09-29 (step 9 built and tuned; speeding up page loads during the trial week).
+Last updated: 2026-09-30 (trial week: faster page loads, and fewer, more useful things on Home and Insights).
 
 ## Phase 1: replace the old app
 
@@ -34,7 +34,30 @@ The owner found every page slow to appear. Fixes, in order:
    Mumbai, and Vercel's functions from Washington DC to Mumbai. Done.
 2. Keep recently visited screens for 30 seconds (`staleTimes.dynamic`), so switching back to one is instant. Done (TD-20).
 3. Stream Home in parts, so available to spend shows before the insights. Done (TD-20).
-4. Fewer rounds of queries per screen, where it still shows.
+4. One round of queries per screen, history in slices loaded at once, and streaming on Insights, Budget,
+   Planned, Entries and tag screens. Done (TD-20).
+5. Cold starts: the first page after about 20 idle minutes takes about 2 s before anything shows. Next:
+   check Fluid compute and keep the server warm with a ping.
+
+## Trimming, during the trial week
+
+The owner wants each screen to keep only what gets used: the 20% of features that give
+80% of the benefit (2026-09-30).
+
+- **Home:** available to spend, then the budget buckets with spending pace and last month's
+  savings under them, in short phrases. Due now, Planned and Latest stay. Alerts (INS-19) are
+  off Home for now; `topAlerts()` stays in the calculation library.
+- **Insights:** saved each month, emergency fund, spending pace, categories vs usual, small
+  spends and recurring payments. The four headlines at the bottom (income and planned
+  payments, coming up, budget, trips and tags) are gone. Small spends stays while the owner
+  decides whether it's used; the "above usual" and price-rise flags stay too.
+- **Navigation:** on a laptop, Insights and Budget are in the side navigation, and More
+  lists only the rest. On a phone the tab bar is unchanged, and More lists them all.
+- **Layout and links:** on a laptop, Home's left column (available to spend and budget) stays
+  put while the right one scrolls, and Insights stacks its cards in two columns without
+  gaps. Each saved month on Insights opens that month's entries. Entry lists on Home and
+  Entries show each day's net (income and refunds minus expenses, like the Entries
+  totals); a day the list may have cut short shows none.
 
 ## Step 9 in detail
 

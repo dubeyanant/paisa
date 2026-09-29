@@ -93,3 +93,16 @@ export function istDayLabel(moment: string | Date, now: Date = new Date()): stri
 export function istTime(moment: string | Date): string {
   return timeFormat.format(new Date(moment));
 }
+
+// What a day's entries add up to: income and refunds in, expenses out. Like the
+// Entries totals, transfers, balance corrections and planned entries don't
+// count (BR-7, BR-13). Null when none of them counts.
+export function dayNet(entries: { kind: TransactionKind; amount: number; is_planned: boolean }[]): number | null {
+  let net: number | null = null;
+  for (const e of entries) {
+    if (e.is_planned) continue;
+    if (e.kind === "expense") net = (net ?? 0) - e.amount;
+    else if (e.kind === "income" || e.kind === "refund") net = (net ?? 0) + e.amount;
+  }
+  return net;
+}

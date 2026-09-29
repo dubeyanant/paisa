@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { listAccounts } from "@/lib/data/accounts";
-import { getActiveRule, getFirstEntryDate, getTransactionsBetween } from "@/lib/data/budget";
+import { daysBackFor, getActiveRule, getFirstEntryDate, getRecentTransactions, inMonths } from "@/lib/data/budget";
 import { getBudgetMonthStartDay, getScheduleTransactions, listCommitments } from "@/lib/data/recurring";
 import { formatShare, headingLabel, periodLabel, statusLabel, streakLabel } from "@/lib/budget";
 import { filtersQuery } from "@/lib/entry-filters";
@@ -17,36 +18,63 @@ export const metadata: Metadata = { title: "Budget · Paisa" };
 const HISTORY_MONTHS = 6;
 
 // The budget rule this month (FR-7, INS-17): each bucket's target, actual,
-// what's left and pace, and how the last months went.
-export default async function BudgetPage() {
+// what's left and pace, and how the last months went. The header shows at
+// once; the rest comes in one round of queries.
+export default function BudgetPage() {
+  return (
+    <>
+      <PageHeader
+        title="Budget"
+        back={{ href: "/more", label: "Back to more", phoneOnly: true }}
+        action={
+          <Link href="/budget/rule" className={buttonClass.secondary}>
+            Edit rule
+          </Link>
+        }
+      />
+      <Suspense
+        fallback={
+          <div aria-hidden className="flex animate-pulse flex-col gap-6">
+            <div className="h-36 rounded-2xl bg-foreground/[0.06]" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="h-72 rounded-2xl bg-foreground/[0.06]" />
+              <div className="h-72 rounded-2xl bg-foreground/[0.06]" />
+              <div className="h-72 rounded-2xl bg-foreground/[0.06]" />
+            </div>
+          </div>
+        }
+      >
+        <Budget />
+      </Suspense>
+    </>
+  );
+}
+
+async function Budget() {
   const today = istDate(new Date());
-  const [rule, accounts, startDay, firstEntry] = await Promise.all([
+  const [rule, accounts, startDay, firstEntry, recent, commitments, scheduled] = await Promise.all([
     getActiveRule(),
     listAccounts(),
     getBudgetMonthStartDay(),
     getFirstEntryDate(),
+    getRecentTransactions(daysBackFor(HISTORY_MONTHS)),
+    listCommitments(),
+    getScheduleTransactions(),
   ]);
   const month = budgetMonthOf(today, startDay);
 
   if (!rule) {
     return (
-      <>
-        <PageHeader title="Budget" back={{ href: "/more", label: "Back to more" }} />
-        <Card className="p-6 text-center">
-          <p className="font-medium">No budget rule yet</p>
-          <Link href="/budget/rule" className={`${buttonClass.primary} mt-4`}>
-            Set up a rule
-          </Link>
-        </Card>
-      </>
+      <Card className="p-6 text-center">
+        <p className="font-medium">No budget rule yet</p>
+        <Link href="/budget/rule" className={`${buttonClass.primary} mt-4`}>
+          Set up a rule
+        </Link>
+      </Card>
     );
   }
 
-  const [history, commitments, scheduled] = await Promise.all([
-    getTransactionsBetween(shiftBudgetMonth(month, -HISTORY_MONTHS), month),
-    listCommitments(),
-    getScheduleTransactions(),
-  ]);
+  const history = inMonths(recent, shiftBudgetMonth(month, -HISTORY_MONTHS), month);
   // Every planned payment, so the ones still to pay count this month.
   const transactions = [...new Map([...scheduled, ...history].map((t) => [t.id, t])).values()];
   const accountsById = new Map(accounts.map((a) => [a.id, a]));
@@ -67,15 +95,6 @@ export default async function BudgetPage() {
 
   return (
     <>
-      <PageHeader
-        title="Budget"
-        back={{ href: "/more", label: "Back to more" }}
-        action={
-          <Link href="/budget/rule" className={buttonClass.secondary}>
-            Edit rule
-          </Link>
-        }
-      />
       <div className="flex flex-col gap-6">
         <Card className="p-4 md:p-6">
           <p className="text-sm text-muted">

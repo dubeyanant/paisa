@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { describeEntry, istDayLabel, istTime } from "./describe-entry";
+import { dayNet, describeEntry, istDayLabel, istTime } from "./describe-entry";
 
 const accounts = new Map([
   ["bank", { name: "Main Bank", type: "bank" as const }],
@@ -56,4 +56,18 @@ describe("IST labels (TD-9)", () => {
   test("shows the time in IST", () => {
     expect(istTime("2026-09-29T08:45:00Z")).toBe("2:15 pm");
   });
+});
+
+test("dayNet", () => {
+  const e = (kind: "expense" | "income" | "refund" | "transfer" | "adjustment", amount: number, is_planned = false) => ({
+    kind,
+    amount,
+    is_planned,
+  });
+  expect(dayNet([e("expense", 15000), e("expense", 14000), e("refund", 5000)])).toBe(-24000);
+  expect(dayNet([e("income", 6000000), e("expense", 11000)])).toBe(5989000);
+  // Transfers, balance corrections and planned entries don't count.
+  expect(dayNet([e("expense", 15000), e("transfer", 500000), e("adjustment", -2000), e("expense", 90000, true)])).toBe(-15000);
+  expect(dayNet([e("transfer", 500000)])).toBeNull();
+  expect(dayNet([])).toBeNull();
 });

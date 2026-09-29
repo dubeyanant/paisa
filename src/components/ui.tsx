@@ -8,13 +8,14 @@ export function PageHeader({
 }: {
   title: string;
   // Where the back arrow goes, on screens below the top level, when there's
-  // no previous screen to return to.
-  back?: { href: string; label: string };
+  // no previous screen to return to. `phoneOnly` for a screen that's in the
+  // side navigation on larger screens.
+  back?: { href: string; label: string; phoneOnly?: boolean };
   action?: React.ReactNode;
 }) {
   return (
     <header className="mb-5 flex min-h-11 items-center gap-2 md:mb-8">
-      {back && <BackLink {...back} />}
+      {back && <BackLink href={back.href} label={back.label} className={back.phoneOnly ? "md:hidden" : ""} />}
       <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight md:text-3xl">
         {title}
       </h1>

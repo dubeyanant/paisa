@@ -165,7 +165,7 @@ Add a new entry when a decision is made, with the date and the reason.
     - **Pace (INS-04) counts everyday spending only** (`everyday()`): payments linked to a planned payment, and anything in the subcategory of an active one, are left out, since they're known in advance. The subcategory rule covers imported history, which isn't linked.
     - **A budget bucket's status looks at where the month is heading:** planned payments in full, paid or not (`stillToPay()`), plus everyday spending at its pace so far. Rent paid on the 1st no longer makes Needs "at risk".
     - **Alerts (INS-19) have minimums:** ₹1,000 ahead of pace, above usual or over a target, and ₹500 a year for a price rise. Price alerts are for payments the owner set up only; detected series such as groceries change price all the time. The insights still show the smaller figures.
-    - **Committed vs free (INS-01) is one sentence on Insights**, not a card on Home, where available to spend already answers the question.
+    - **Committed vs free (INS-01) isn't shown**: available to spend already answers the question. It was a sentence on Insights until the owner trimmed the screen (2026-09-30, roadmap).
     - **Small spends (INS-06) cover the last 30 days**, so the figure is a full month's worth on any day.
   - **Every figure can be explained and opened** (owner, 2026-09-29): each insight shows what it compares against (a usual month's ₹, where a bucket is heading and why), and each row opens the matching entries on the Entries screen. Savings are charted in rupees, with each month's income and spending listed; a rate below -100% isn't shown. Screens go red on the same ₹1,000 rule as alerts (`hotEnough()`), and money owed (card dues, loans) is red.
   - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8). On screen, commitments and one-off planned entries are both "planned payments" (TD-18).
@@ -203,12 +203,22 @@ Add a new entry when a decision is made, with the date and the reason.
   - **The move:** the new project's schema and migration history came from a one-time `supabase db push` into the empty database. It's the only exception to TD-3's rule, and it does what the GitHub integration would. The data, the owner's sign-in included (same user ID and password), was copied with `pg_dump --data-only` and restored with triggers paused, so no default data was created twice. Before the app switched, a read-only check matched both sides by row count and a checksum of every row, for every table and for the balances, along with the migrations, RLS policies, grants and functions. The app changed only its URL and publishable key.
 - **Why:** Pages were slow to load. Vercel ran the functions in Washington DC (its default) and the database was in Seoul, so each of a page's rounds of queries took about 190 ms before the page reached the owner in Mumbai. With the owner, the functions and the database in one city, each round takes a few milliseconds.
 
-### TD-20 Screens appear in parts, and stay for 30 seconds
+### TD-20 Screens load in one round, appear in parts, and stay for 30 seconds
 - **Date:** 2026-09-29
 - **Decision:**
-  - **Home streams:** the page starts every load once and passes the promises to its parts, each in its own `<Suspense>` with a placeholder the size of the part. The header shows at once. Available to spend, Due now and the latest entries follow the first round of queries, and the insights and alerts the second.
+  - **One round of queries per screen.** A screen starts every load at once. Home, Insights and Budget used to wait for the budget month start day before loading their history. Now they load enough days to cover any start day (`daysBackFor()`, a month being at most 31 days) and keep the months they need (`inMonths()`).
+  - **Long ranges load in slices at once.** `getRecentTransactions(days)` splits the range into 60-day slices loaded side by side, instead of 1,000-row pages one after another. Insights and Planned use one 400-day load for both the history and recurring-payment detection.
+  - **Loads shared within a request run once:** accounts, labels, planned payments, settings, the budget rule and tags are wrapped in React's `cache()`.
+  - **Screens with slow parts stream them:** each part is its own `<Suspense>` with a placeholder the size of the part, and the header shows at once.
+    - Home: available to spend, Due now and the latest entries first, then the budget and insights.
+    - Insights: each card.
+    - Budget: the whole body.
+    - Planned: the suggestions found in your entries after the rest.
+    - Entries: the filters, then the results. When the filters change, the old results stay until the new ones are in.
+    - A tag's screen: its suggested entries after the rest.
+  - The other screens load in one round in about 100 ms, and `loading.tsx` covers the wait, so they don't stream: a header-first step there would only add a second flash.
   - **Client cache:** `experimental.staleTimes.dynamic` is 30 seconds, so going back to a screen seen in the last 30 seconds is instant. Every save calls `revalidatePath("/", "layout")`, which clears this cache, so a screen never shows figures from before a save. A change made on another device can take up to 30 seconds to show.
-- **Why:** The owner found screens blank for too long before anything showed (TD-19 covers the network side).
+- **Why:** The owner found screens blank for too long before anything showed. TD-19 covers the network side.
 
 ## Open decisions
 

@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { BucketAdherence } from "@/lib/finance/budget";
 import { budgetMonthOf, type Period } from "@/lib/finance/dates";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type { CategoryTrend, Pace, SavingsMonth } from "@/lib/finance/insights";
 import type { TagReport } from "@/lib/finance/tags";
 import {
-  budgetHeadline,
-  committedHeadline,
   emergencyHeadline,
   howOften,
   notReady,
@@ -17,7 +14,6 @@ import {
   tagComparison,
   tagHeadline,
   trendHeadline,
-  upcomingHeadline,
 } from "./insights";
 
 const sep = budgetMonthOf("2026-09-01");
@@ -36,15 +32,6 @@ const month = (period: Period, income: number, spending: number): SavingsMonth =
 test("notReady", () => {
   expect(notReady(1)).toBe("Available after 1 more month of entries.");
   expect(notReady(2)).toBe("Available after 2 more months of entries.");
-});
-
-test("INS-01 income and planned payments", () => {
-  const c = { income: 6000000, committed: 3539900, free: 2460100, discretionary: 0, planned: 0, freeLeft: 0, reserved: 0 };
-  expect(committedHeadline(c)).toBe("₹35,399 of your ₹60,000 income this month goes to planned payments (59%).");
-  expect(committedHeadline({ ...c, income: 0 })).toBe("No income yet this month. ₹35,399 of planned payments are due.");
-  expect(committedHeadline({ ...c, income: 3000000 })).toBe(
-    "₹35,399 of planned payments are due this month, more than your ₹30,000 income so far.",
-  );
 });
 
 test("INS-02 savings rate, finished months only", () => {
@@ -150,40 +137,6 @@ test("INS-09 subscriptions (UAT-8)", () => {
   expect(subscriptionsHeadline([], () => "")).toBe("No recurring payments yet.");
   expect(howOften({ unit: "month", every: 3 })).toBe("Every 3 months");
   expect(howOften({ unit: "year", every: 1 })).toBe("Yearly");
-});
-
-test("INS-10 upcoming", () => {
-  const item = (date: string, amount: number, overdue = false) => ({
-    date,
-    amount,
-    commitment_id: null,
-    transaction_id: null,
-    overdue,
-  });
-  expect(upcomingHeadline([item("2026-09-12", 3000000), item("2026-09-25", 100000)], "2026-09-10")).toBe(
-    "₹30,000 due in the next 10 days, ₹31,000 in the next 30.",
-  );
-  expect(upcomingHeadline([item("2026-09-05", 90000, true)], "2026-09-10")).toBe("₹900 overdue.");
-  expect(upcomingHeadline([], "2026-09-10")).toBe("Nothing due in the next 30 days.");
-});
-
-test("INS-17 budget", () => {
-  const bucket = (name: string, status: BucketAdherence["status"], remaining: number, streak = 0): BucketAdherence => ({
-    bucket: { id: name, name, share_bp: 3000, holds_savings: false },
-    target: 1800000,
-    actual: 1800000 - remaining,
-    remaining,
-    shareOfBase: (1800000 - remaining) / 6000000,
-    status,
-    plannedLeft: 0,
-    projected: 1800000 - remaining,
-    streak,
-    history: [],
-  });
-  expect(budgetHeadline([bucket("Needs", "at_risk", 100), bucket("Wants", "over", -360000, 3)])).toBe(
-    "Wants at 36% vs 30% target. Over for the 3rd month running.",
-  );
-  expect(budgetHeadline([bucket("Needs", "on_track", 100)])).toBe("Every bucket is on track this month.");
 });
 
 describe("INS-13 tags", () => {

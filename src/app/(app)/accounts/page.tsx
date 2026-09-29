@@ -19,13 +19,11 @@ export default async function AccountsPage() {
 
   // A figure of ₹0 says nothing, so it isn't shown (TD-18).
   const tiles = [
-    { label: "Bank and cash", hint: "What the accounts hold", value: summary.available },
     { label: "Planned", hint: `Still to pay by ${dayInSentence(addDays(month.end, -1), today)}`, value: summary.planned, tone: "text-planned" },
     { label: "Set aside", hint: "Sinking funds", value: summary.setAside },
     { label: "Card dues", hint: "Owed on cards", value: summary.cardDues, tone: "text-negative" },
     { label: "Card credit", hint: "In your favour", value: summary.cardCredit },
     { label: "Savings", hint: "Savings and investments", value: summary.savings, tone: "text-saving" },
-    { label: "Deposits", hint: "Comes back later", value: summary.deposits },
     { label: "Loans", hint: "Still owed", value: summary.loansOwed, tone: "text-negative" },
     { label: "Net position", hint: "All you have, minus all you owe", value: summary.netPosition },
   ].filter((t) => t.value !== 0);
