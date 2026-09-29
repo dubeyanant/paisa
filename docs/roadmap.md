@@ -32,8 +32,8 @@ The owner found every page slow to appear. Fixes, in order:
 
 1. **Everything in Mumbai (TD-19):** the database moved from Seoul to a new Supabase project in
    Mumbai, and Vercel's functions from Washington DC to Mumbai. Done.
-2. Keep recently visited screens for 30 seconds (`staleTimes.dynamic`), so switching back to one is instant.
-3. Stream Home in parts, so available to spend shows before the insights.
+2. Keep recently visited screens for 30 seconds (`staleTimes.dynamic`), so switching back to one is instant. Done (TD-20).
+3. Stream Home in parts, so available to spend shows before the insights. Done (TD-20).
 4. Fewer rounds of queries per screen, where it still shows.
 
 ## Step 9 in detail

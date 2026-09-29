@@ -203,6 +203,13 @@ Add a new entry when a decision is made, with the date and the reason.
   - **The move:** the new project's schema and migration history came from a one-time `supabase db push` into the empty database. It's the only exception to TD-3's rule, and it does what the GitHub integration would. The data, the owner's sign-in included (same user ID and password), was copied with `pg_dump --data-only` and restored with triggers paused, so no default data was created twice. Before the app switched, a read-only check matched both sides by row count and a checksum of every row, for every table and for the balances, along with the migrations, RLS policies, grants and functions. The app changed only its URL and publishable key.
 - **Why:** Pages were slow to load. Vercel ran the functions in Washington DC (its default) and the database was in Seoul, so each of a page's rounds of queries took about 190 ms before the page reached the owner in Mumbai. With the owner, the functions and the database in one city, each round takes a few milliseconds.
 
+### TD-20 Screens appear in parts, and stay for 30 seconds
+- **Date:** 2026-09-29
+- **Decision:**
+  - **Home streams:** the page starts every load once and passes the promises to its parts, each in its own `<Suspense>` with a placeholder the size of the part. The header shows at once. Available to spend, Due now and the latest entries follow the first round of queries, and the insights and alerts the second.
+  - **Client cache:** `experimental.staleTimes.dynamic` is 30 seconds, so going back to a screen seen in the last 30 seconds is instant. Every save calls `revalidatePath("/", "layout")`, which clears this cache, so a screen never shows figures from before a save. A change made on another device can take up to 30 seconds to show.
+- **Why:** The owner found screens blank for too long before anything showed (TD-19 covers the network side).
+
 ## Open decisions
 
 Decide these when the related work starts. Until then they are only suggestions.
