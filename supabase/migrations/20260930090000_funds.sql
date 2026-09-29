@@ -171,3 +171,47 @@ begin
   end loop;
 end;
 $$;
+
+-- Changing a fund in one go (TD-21): its fields, and the finished months of
+-- the old schedule kept as fund_moves, so past months stay as they were even
+-- if a save fails halfway. `kept` is a JSON array of
+--   { "amount": bigint, "occurred_at": timestamptz }
+-- Closed funds don't change. Runs with the caller's rights (TD-2).
+create function public.update_fund(
+  fund uuid,
+  new_name text,
+  new_bucket uuid,
+  new_target bigint,
+  new_monthly bigint,
+  new_cap bigint,
+  new_schedule_from date,
+  new_ends_on date,
+  kept jsonb default '[]'
+)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  update public.funds
+     set name = new_name,
+         bucket_id = new_bucket,
+         target = new_target,
+         monthly_amount = new_monthly,
+         cap = new_cap,
+         schedule_from = new_schedule_from,
+         ends_on = new_ends_on
+   where id = fund and closed_at is null;
+  if not found then
+    raise exception 'Fund not found or closed' using errcode = 'P0002';
+  end if;
+
+  insert into public.fund_moves (user_id, fund_id, amount, occurred_at, is_monthly)
+  select f.user_id, f.id, (k ->> 'amount')::bigint, (k ->> 'occurred_at')::timestamptz, true
+    from public.funds f, jsonb_array_elements(coalesce(kept, '[]')) k
+   where f.id = fund;
+end;
+$$;
+
+revoke all on function public.update_fund(uuid, text, uuid, bigint, bigint, bigint, date, date, jsonb) from public, anon, authenticated;
+grant execute on function public.update_fund(uuid, text, uuid, bigint, bigint, bigint, date, date, jsonb) to authenticated;
