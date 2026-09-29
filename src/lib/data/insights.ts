@@ -1,27 +1,24 @@
 import "server-only";
 import { cache } from "react";
 import { requireUser } from "@/lib/auth";
-import { getActiveRule, getFirstEntryDate, getRecentTransactions, inMonths } from "@/lib/data/budget";
+import { getFirstEntryDate, getRecentTransactions, inMonths } from "@/lib/data/budget";
 import { getLabels } from "@/lib/data/entries";
 import { DETECTION_DAYS, getDetectionHistory } from "@/lib/data/recurring";
 import { getMoneySummary } from "@/lib/data/summary";
-import { budgetAdherence, plannedPayments } from "@/lib/finance/budget";
 import { addDays, istDate, shiftBudgetMonth } from "@/lib/finance/dates";
 import { recurringPayments } from "@/lib/finance/detection";
 import {
   categoryTrends,
-  committedVsFree,
   emergencyFundCoverage,
   everyday,
   monthToDatePace,
   savingsTrend,
   smallSpendLeak,
 } from "@/lib/finance/insights";
-import { upcoming } from "@/lib/finance/recurring";
 import { createClient } from "@/lib/supabase/server";
 
-// Budget months of history before this one: the typical month (BR-10), the
-// 6-month trends and the budget streaks need up to 6.
+// Budget months of history before this one: the typical month (BR-10) and the
+// 6-month trends need up to 6.
 const HISTORY_MONTHS = 6;
 
 // The small-spend threshold for INS-06, in paise (₹200 unless changed).
@@ -39,13 +36,12 @@ export const getSmallSpendThreshold = cache(async (): Promise<number> => {
 export async function getInsights(now = new Date()) {
   // Detection's 400 days reach back further than the 7 budget months, so one
   // load serves both, in the same round as everything else.
-  const [{ accounts, commitments, scheduled, month, today }, labels, recent, detection, rule, firstEntry, threshold] =
+  const [{ accounts, commitments, scheduled, month, today }, labels, recent, detection, firstEntry, threshold] =
     await Promise.all([
       getMoneySummary(now),
       getLabels(),
       getRecentTransactions(DETECTION_DAYS),
       getDetectionHistory(),
-      getActiveRule(),
       getFirstEntryDate(),
       getSmallSpendThreshold(),
     ]);
@@ -67,7 +63,6 @@ export async function getInsights(now = new Date()) {
     today,
     firstDate,
     threshold,
-    free: committedVsFree(transactions, accountsById, commitments, month, today),
     // Finished months only: until a month ends, rent and bills still to pay
     // look like money saved.
     savings: savingsTrend(transactions, accountsById, shiftBudgetMonth(month, -1), HISTORY_MONTHS),
@@ -83,12 +78,5 @@ export async function getInsights(now = new Date()) {
       const to = p.commitment?.to_account_id ?? p.series?.to_account_id;
       return !to || accountsById.get(to)?.type !== "credit_card";
     }),
-    upcoming: upcoming(commitments, scheduled, today),
-    budget: rule
-      ? {
-          rule,
-          ...budgetAdherence(transactions, rule, accountsById, month, today, HISTORY_MONTHS, plannedPayments(transactions, commitments, month, today)),
-        }
-      : null,
   };
 }

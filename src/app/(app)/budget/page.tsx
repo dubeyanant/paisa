@@ -25,7 +25,7 @@ export default function BudgetPage() {
     <>
       <PageHeader
         title="Budget"
-        back={{ href: "/more", label: "Back to more" }}
+        back={{ href: "/more", label: "Back to more", phoneOnly: true }}
         action={
           <Link href="/budget/rule" className={buttonClass.secondary}>
             Edit rule

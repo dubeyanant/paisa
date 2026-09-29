@@ -165,7 +165,7 @@ Add a new entry when a decision is made, with the date and the reason.
     - **Pace (INS-04) counts everyday spending only** (`everyday()`): payments linked to a planned payment, and anything in the subcategory of an active one, are left out, since they're known in advance. The subcategory rule covers imported history, which isn't linked.
     - **A budget bucket's status looks at where the month is heading:** planned payments in full, paid or not (`stillToPay()`), plus everyday spending at its pace so far. Rent paid on the 1st no longer makes Needs "at risk".
     - **Alerts (INS-19) have minimums:** ₹1,000 ahead of pace, above usual or over a target, and ₹500 a year for a price rise. Price alerts are for payments the owner set up only; detected series such as groceries change price all the time. The insights still show the smaller figures.
-    - **Committed vs free (INS-01) is one sentence on Insights**, not a card on Home, where available to spend already answers the question.
+    - **Committed vs free (INS-01) isn't shown**: available to spend already answers the question. It was a sentence on Insights until the owner trimmed the screen (2026-09-30, roadmap).
     - **Small spends (INS-06) cover the last 30 days**, so the figure is a full month's worth on any day.
   - **Every figure can be explained and opened** (owner, 2026-09-29): each insight shows what it compares against (a usual month's ₹, where a bucket is heading and why), and each row opens the matching entries on the Entries screen. Savings are charted in rupees, with each month's income and spending listed; a rate below -100% isn't shown. Screens go red on the same ₹1,000 rule as alerts (`hotEnough()`), and money owed (card dues, loans) is red.
   - **Owner decisions:** "this year" means the calendar year (INS-11, INS-15). Next month's planned entries show in Upcoming but aren't reserved this month. A pending due date can be skipped (step 8). On screen, commitments and one-off planned entries are both "planned payments" (TD-18).
@@ -210,7 +210,7 @@ Add a new entry when a decision is made, with the date and the reason.
   - **Long ranges load in slices at once.** `getRecentTransactions(days)` splits the range into 60-day slices loaded side by side, instead of 1,000-row pages one after another. Insights and Planned use one 400-day load for both the history and recurring-payment detection.
   - **Loads shared within a request run once:** accounts, labels, planned payments, settings, the budget rule and tags are wrapped in React's `cache()`.
   - **Screens with slow parts stream them:** each part is its own `<Suspense>` with a placeholder the size of the part, and the header shows at once.
-    - Home: available to spend, Due now and the latest entries first, then the insights and alerts.
+    - Home: available to spend, Due now and the latest entries first, then the budget and insights.
     - Insights: each card.
     - Budget: the whole body.
     - Planned: the suggestions found in your entries after the rest.

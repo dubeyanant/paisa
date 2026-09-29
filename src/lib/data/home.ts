@@ -2,20 +2,18 @@ import "server-only";
 import { daysBackFor, getActiveRule, getFirstEntryDate, getRecentTransactions, inMonths } from "@/lib/data/budget";
 import type { getLabels } from "@/lib/data/entries";
 import type { getMoneySummary } from "@/lib/data/summary";
-import { topAlerts } from "@/lib/finance/alerts";
 import { budgetAdherence, plannedPayments } from "@/lib/finance/budget";
 import { istDate, shiftBudgetMonth } from "@/lib/finance/dates";
-import { recurringPayments } from "@/lib/finance/detection";
-import { categoryTrends, everyday, monthToDatePace, savingsTrend } from "@/lib/finance/insights";
+import { everyday, monthToDatePace, savingsTrend } from "@/lib/finance/insights";
 
 // Budget months of history before this one that Home's insights look at: the
 // typical month (BR-10) and the budget streaks need up to 6.
 const HISTORY_MONTHS = 6;
 
-// The Home screen's insights (FR-8): everyday spending pace, last month's
-// savings rate, budget buckets and the top alerts. Takes getMoneySummary()
-// and getLabels() while they load, and starts its own loads alongside them,
-// so the whole screen needs one round of queries.
+// The Home screen's insights (FR-8): budget buckets, everyday spending pace
+// and last month's savings rate. Takes getMoneySummary() and getLabels() while
+// they load, and starts its own loads alongside them, so the whole screen
+// needs one round of queries.
 export async function getHomeInsights(
   loadingSummary: ReturnType<typeof getMoneySummary>,
   loadingLabels: ReturnType<typeof getLabels>,
@@ -37,14 +35,9 @@ export async function getHomeInsights(
 
   // Planned payments (rent, bills) are known in advance, so pace leaves them out.
   const pace = monthToDatePace(everyday(transactions, commitments, today), accountsById, categoryOf, month, today, firstDate);
-  const trends = categoryTrends(transactions, categoryOf, month, firstDate);
   const budget = rule
     ? budgetAdherence(transactions, rule, accountsById, month, today, HISTORY_MONTHS, plannedPayments(transactions, commitments, month, today))
     : null;
-  const recurring = recurringPayments(commitments, transactions, today);
-  // Overdue payments aren't among the alerts here: Due now, just below them,
-  // already lists each one with a button to confirm it.
-  const alerts = topAlerts({ pace, trends, recurring, budget: budget?.buckets });
 
   return {
     // A savings rate means something once the month is over: until then rent
@@ -52,7 +45,6 @@ export async function getHomeInsights(
     savings: savingsTrend(transactions, accountsById, shiftBudgetMonth(month, -1), 2),
     pace,
     budget,
-    alerts,
     firstDate,
   };
 }

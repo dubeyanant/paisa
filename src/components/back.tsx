@@ -29,7 +29,7 @@ export function useGoBack(fallback: string) {
   };
 }
 
-export function BackLink({ href, label }: { href: string; label: string }) {
+export function BackLink({ href, label, className = "" }: { href: string; label: string; className?: string }) {
   const goBack = useGoBack(href);
   return (
     <Link
@@ -40,7 +40,7 @@ export function BackLink({ href, label }: { href: string; label: string }) {
         event.preventDefault();
         goBack();
       }}
-      className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-foreground/5 hover:text-foreground"
+      className={`-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-foreground/5 hover:text-foreground ${className}`}
     >
       <ArrowLeftIcon />
     </Link>

@@ -44,6 +44,15 @@ export function InsightsIcon(props: IconProps) {
   );
 }
 
+export function BudgetIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4v8h8" />
+    </Icon>
+  );
+}
+
 export function EntriesIcon(props: IconProps) {
   return (
     <Icon {...props}>

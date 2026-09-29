@@ -5,7 +5,6 @@ import { ChevronRightIcon } from "@/components/icons";
 import { Card, PageHeader } from "@/components/ui";
 import { periodLabel } from "@/lib/budget";
 import { getInsights } from "@/lib/data/insights";
-import { getTagReports } from "@/lib/data/tags";
 import type { RecurringPayment } from "@/lib/finance/detection";
 import type { CategoryTrend, Pace } from "@/lib/finance/insights";
 import { hotEnough } from "@/lib/finance/alerts";
@@ -14,8 +13,6 @@ import { formatINR } from "@/lib/finance/money";
 import { filtersQuery } from "@/lib/entry-filters";
 import { percent, times } from "@/lib/home";
 import {
-  budgetHeadline,
-  committedHeadline,
   emergencyHeadline,
   howOften,
   paceHeadline,
@@ -23,9 +20,7 @@ import {
   sensibleRate,
   smallSpendHeadline,
   subscriptionsHeadline,
-  tagHeadline,
   trendHeadline,
-  upcomingHeadline,
 } from "@/lib/insights";
 import { fallbackName, lookups } from "../more/planned/rows";
 import { SavingsChart } from "./savings-chart";
@@ -38,14 +33,12 @@ const TOP = 6;
 
 // The Phase 1 insights (FR-8.4, FR-9), each with a plain-language headline and
 // a chart or list. Budget adherence (INS-17), upcoming bills (INS-10) and tag
-// reports (INS-13) have their own screens, so they show here as headlines that
-// link there.
+// reports (INS-13) have their own screens, and aren't repeated here.
 //
 // The header shows at once, and each card as soon as the data is in. Every
 // load starts here, in one round of queries.
 export default function InsightsPage() {
   const view = getInsights().then(toView);
-  const tags = getTagReports();
   return (
     <>
       <PageHeader title="Insights" />
@@ -70,9 +63,6 @@ export default function InsightsPage() {
         </Suspense>
         <Suspense fallback={<Placeholder className="h-72" />}>
           <RecurringSection view={view} />
-        </Suspense>
-        <Suspense fallback={<Placeholder className="h-24" />}>
-          <LinkSections view={view} tags={tags} />
         </Suspense>
       </div>
     </>
@@ -282,34 +272,6 @@ async function RecurringSection({ view }: { view: Promise<View> }) {
   );
 }
 
-// The insights that have their own screens, as headlines that link there.
-async function LinkSections({ view, tags }: { view: Promise<View>; tags: ReturnType<typeof getTagReports> }) {
-  const [{ d, category }, tagData] = await Promise.all([view, tags]);
-  // The latest tag with spending (INS-13).
-  const latestTag = [...tagData.reports.values()].find((r) => r.total > 0);
-  return (
-    <>
-      <Section title="Income and planned payments" headline={committedHeadline(d.free)} />
-
-      <LinkSection
-        href="/more/planned"
-        title="Coming up"
-        headline={upcomingHeadline(d.upcoming.items, d.today)}
-      />
-      {d.budget && <LinkSection href="/budget" title="Budget" headline={budgetHeadline(d.budget.buckets)} />}
-      <LinkSection
-        href={latestTag ? `/more/tags/${latestTag.tagId}` : "/more/tags"}
-        title="Trips and tags"
-        headline={
-          latestTag
-            ? tagHeadline(tagData.tags.find((t) => t.id === latestTag.tagId)?.name ?? "Latest tag", latestTag, category)
-            : "Tag a trip or an event to see what it cost."
-        }
-      />
-    </>
-  );
-}
-
 function Section({ title, headline, children }: { title: string; headline: string; children?: React.ReactNode }) {
   return (
     <Card className="flex flex-col gap-3 p-4 md:p-6">
@@ -319,20 +281,6 @@ function Section({ title, headline, children }: { title: string; headline: strin
       </div>
       {children}
     </Card>
-  );
-}
-
-function LinkSection({ href, title, headline }: { href: string; title: string; headline: string }) {
-  return (
-    <Link href={href} className="block rounded-2xl">
-      <Card className="flex items-center gap-3 p-4 transition-colors hover:bg-foreground/[0.03] md:p-6">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm text-muted">{title}</h2>
-          <p className="mt-1 font-medium">{headline}</p>
-        </div>
-        <ChevronRightIcon className="-mr-1 size-5 shrink-0 text-muted" />
-      </Card>
-    </Link>
   );
 }
 
